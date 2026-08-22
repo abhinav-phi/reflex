@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node / web
+node_modules/
+apps/web/dist/
+apps/web/coverage/
+*.local
+
+# Env & secrets — NEVER commit .env (Rules §1.1)
+.env
+.env.*
+!.env.example
+
+# Docker / local data volumes
+.docker-data/
+pgdata/
+
+# Eval scratch (results/ is committed evidence — do not ignore it)
+eval/results/_scratch/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+
+# Playwright
+test-results/
+playwright-report/
