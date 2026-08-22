@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reflex"
+version = "1.0.0"
+description = "Reflex - bounded, root-cause-diagnosing payment-recovery agent (Razorpay AI Buildathon Track 03)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.2",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13",
+    "psycopg[binary,pool]>=3.1",
+    "redis>=5.0",
+    "httpx>=0.27",
+    "structlog>=24.1",
+    "pyjwt>=2.8",
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-timeout>=2.3",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-psycopg2",
+]
+
+[tool.setuptools]
+packages = [
+    "reflex",
+    "reflex.core",
+    "reflex.shield",
+    "reflex.brain",
+    "reflex.connectors",
+    "reflex.ledger",
+    "reflex.prompts",
+    "reflex.api",
+    "reflex.workers",
+    "reflex.eval",
+]
+
+[tool.setuptools.package-dir]
+"reflex.core" = "packages/core"
+"reflex.shield" = "packages/shield"
+"reflex.brain" = "packages/brain"
+"reflex.connectors" = "packages/connectors"
+"reflex.ledger" = "packages/ledger"
+"reflex.prompts" = "packages/prompts"
+"reflex.api" = "apps/api"
+"reflex.workers" = "apps/workers"
+"reflex.eval" = "apps/eval"
+
+[tool.setuptools.package-data]
+"reflex.prompts" = ["*.txt"]
+
+[project.scripts]
+reflex-worker = "reflex.workers.runner:main"
+reflex-eval = "reflex.eval.cli:main"
+reflex-seed = "reflex.eval.seed:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requires Postgres+Redis (docker compose up)",
+    "ai_live: requires a configured LLM provider (LLM_API_KEY)",
+    "load: burst/load tests",
+    "e2e: Playwright end-to-end (requires running stack)",
+]
+timeout = 300
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true

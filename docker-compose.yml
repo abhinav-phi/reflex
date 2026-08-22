@@ -1,0 +1,96 @@
+# Reflex — one-command bring-up (TechSpec §16)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reflex_dev_pg}
+      POSTGRES_DB: ${POSTGRES_DB:-reflex}
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-reflex}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: uvicorn reflex.api.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      DATABASE_URL_ADMIN: postgresql+psycopg://postgres:reflex_dev_pg@postgres:5432/reflex
+      REDIS_URL: redis://redis:6379/0
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/healthz').raise_for_status()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  workers-diagnosis:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m reflex.workers.runner --role diagnosis
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      api: { condition: service_healthy }
+
+  workers-decision:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m reflex.workers.runner --role decision
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      api: { condition: service_healthy }
+
+  workers-outcome:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    command: python -m reflex.workers.runner --role outcome
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      api: { condition: service_healthy }
+
+  eval:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.python
+    profiles: ["eval"]
+    command: ["sleep", "infinity"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  pgdata:
