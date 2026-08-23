@@ -1,0 +1,9 @@
+{
+  "eval_seeds": [42, 1337, 2025],
+  "dev_tuning_seeds": [7, 99],
+  "demo_seed": "demo-7",
+  "demo_episodes": 214,
+  "demo_failed_value_paise": 24100000,
+  "simulator_version": "sim-v1",
+  "note": "Seeds fixed by eval/PROTOCOL.md (tag eval-preregistered-v1)."
+}

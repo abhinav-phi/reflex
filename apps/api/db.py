@@ -18,7 +18,15 @@ def agent_engine():  # type: ignore[no-untyped-def]
 
 @lru_cache
 def eval_engine():  # type: ignore[no-untyped-def]
-    return create_engine(get_settings().database_url_eval, pool_pre_ping=True)
+    # Proof runs up to 8 parallel arm-transactions on this engine; each holds
+    # one connection for the whole arm — the pool must cover the worker count.
+    return create_engine(
+        get_settings().database_url_eval,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=6,
+        pool_timeout=60,
+    )
 
 
 @lru_cache

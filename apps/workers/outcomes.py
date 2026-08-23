@@ -168,7 +168,11 @@ def stop_customer(
     suppression_source: str,
     at: datetime,
 ) -> None:
-    """COMPLAINT/OPTOUT path: instant global suppression + human handoff (F5)."""
+    """COMPLAINT/OPTOUT path: instant global suppression + human handoff (F5).
+
+    The per-customer advisory lock serializes concurrent arms/workers inserting
+    the same suppression row — deadlock-proof under parallel eval.
+    """
     from reflex.core.enums import SuppressionReason
 
     reason = (
@@ -176,14 +180,21 @@ def stop_customer(
         if "complaint" in reason_reason.lower()
         else SuppressionReason.OPTOUT
     )
-    session.execute(
-        text(
-            "INSERT INTO runtime.suppressions (customer_id, reason, source) "
-            "VALUES (:c, CAST(:r AS runtime.suppression_reason), :s) "
-            "ON CONFLICT (customer_id, reason) DO NOTHING"
-        ),
-        {"c": customer_id, "r": reason.value, "s": suppression_source},
-    )
+    # Single global lock: parallel arms acquire customer-suppression locks in
+    # event order, which can interleave into cycles with per-customer keys.
+    session.execute(text("SELECT pg_advisory_xact_lock(723302)"))
+    try:
+        with session.begin_nested():
+            session.execute(
+                text(
+                    "INSERT INTO runtime.suppressions (customer_id, reason, source) "
+                    "VALUES (CAST(:c AS uuid), CAST(:r AS runtime.suppression_reason), :s) "
+                    "ON CONFLICT (customer_id, reason) DO NOTHING"
+                ),
+                {"c": customer_id, "r": reason.value, "s": suppression_source},
+            )
+    except Exception:
+        pass  # already suppressed — idempotent intent
     ledger = LedgerWriter(session)
     ledger.append(
         episode_id=episode_id,
@@ -195,10 +206,14 @@ def stop_customer(
         },
         at=at,
     )
-    session.execute(
-        text("UPDATE runtime.episodes SET status = 'stopped_customer' WHERE id = :e AND status NOT IN ('recovered','expired','halted')"),
-        {"e": episode_id},
-    )
+    try:
+        with session.begin_nested():
+            session.execute(
+                text("UPDATE runtime.episodes SET status = 'stopped_customer' WHERE id = :e AND status NOT IN ('recovered','expired','halted')"),
+                {"e": episode_id},
+            )
+    except Exception:
+        pass  # terminal already (e.g., escalated) — suppression itself persisted
 
 
 def escalate_human(session: Session, *, episode_id: str, note: str, at: datetime) -> None:

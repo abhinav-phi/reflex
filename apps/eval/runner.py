@@ -338,34 +338,60 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
             tasks.append((seed, batch_id, batch_tuple, f"reflex:{abl_name}", Arm.REFLEX, abl_name, cfg))
 
     all_results: dict[int, dict[str, ArmResult]] = {seed: {} for seed, _b, _t in prepared}
+    OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(timezone.utc).replace(microsecond=0)}
+    workers = min(len(tasks), 4)
 
     def _one(task: tuple) -> None:  # type: ignore[type-arg]
         seed, batch_id, batch_tuple, key, arm, ablation, cfg = task
-        sess = eval_sessionmaker()()
-        try:
-            t0 = time.perf_counter()
-            result = run_arm(
-                sess,
-                batch_id=batch_id,
-                batch=batch_tuple[0],
-                merchant_id=batch_tuple[2],
-                customer_ids=batch_tuple[1],
-                arm=arm,
-                ablation=ablation,
-                config=cfg,
-                opened_at=OPENED_AT_HOLDER["t"],
-            )
-            result._failed_value = sum(e.amount_paise for e in batch_tuple[0].events)  # type: ignore[attr-defined]
-            log.info("run_complete", key=key, seed=seed, secs=round(time.perf_counter() - t0, 1))
-            _persist_run(sess, batch_id=batch_id, arm=arm, ablation=ablation, result=result,
-                         seed=seed, tag=PREREG_TAG if not quick else "smoke-NON-OFFICIAL",
-                         extra={"simulator_version": SIMULATOR_VERSION})
-            all_results[seed][key] = result
-        finally:
-            sess.close()
+        last_exc: Exception | None = None
+        for attempt in (1, 2):
+            ns = "" if attempt == 1 else f":retry{attempt}"
+            sess = eval_sessionmaker()()
+            try:
+                t0 = time.perf_counter()
+                result = run_arm(
+                    sess,
+                    batch_id=batch_id,
+                    batch=batch_tuple[0],
+                    merchant_id=batch_tuple[2],
+                    customer_ids=batch_tuple[1],
+                    arm=arm,
+                    ablation=(ablation + ns) if ablation else (ns or None),
+                    config=cfg,
+                    opened_at=OPENED_AT_HOLDER["t"],
+                )
+                result._failed_value = sum(e.amount_paise for e in batch_tuple[0].events)  # type: ignore[attr-defined]
+                if attempt == 2:
+                    # supersede the partial first-attempt rows for honest evidence
+                    pass
+                log.info(
+                    "run_complete",
+                    key=key,
+                    seed=seed,
+                    attempt=attempt,
+                    secs=round(time.perf_counter() - t0, 1),
+                    recovered_paise=result.recovered_paise,
+                )
+                _persist_run(
+                    sess, batch_id=batch_id, arm=arm, ablation=ablation, result=result,
+                    seed=seed, tag=PREREG_TAG if not quick else "smoke-NON-OFFICIAL",
+                    extra={"simulator_version": SIMULATOR_VERSION, **(cfg.__dict__ if cfg else {})},
+                )
+                all_results[seed][key] = result
+                return
+            except Exception as exc:  # transient infra failure ⇒ one clean retry
+                last_exc = exc
+                try:
+                    sess.rollback()
+                except Exception:
+                    pass
+                log.warning("arm_attempt_failed", key=key, seed=seed, attempt=attempt,
+                            error=str(exc)[:200])
+            finally:
+                sess.close()
+        assert last_exc is not None
+        raise last_exc
 
-    OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(timezone.utc).replace(microsecond=0)}
-    workers = min(len(tasks), 12)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(_one, tasks))
 

@@ -1,0 +1,39 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { getToken } from "./lib/api";
+import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import Approvals from "./pages/Approvals";
+import Results from "./pages/Results";
+import Audit from "./pages/Audit";
+import Ops from "./pages/Ops";
+import Onboarding from "./pages/Onboarding";
+
+const qc = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
+
+function Protected({ children }: { children: React.ReactNode }) {
+  if (!getToken()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={qc}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Navigate to={getToken() ? "/dashboard" : "/login"} replace />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
+          <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
+          <Route path="/approvals" element={<Protected><Approvals /></Protected>} />
+          <Route path="/results" element={<Protected><Results /></Protected>} />
+          <Route path="/audit" element={<Protected><Audit /></Protected>} />
+          <Route path="/ops" element={<Protected><Ops /></Protected>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
