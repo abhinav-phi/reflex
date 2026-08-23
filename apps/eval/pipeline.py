@@ -76,6 +76,11 @@ class ArmResult:
         self.contacts = 0
         self.declined_cohort: list[dict] = []
         self.shield_blocks = 0
+        # per-episode arrays for bootstrap CIs (protocol §2)
+        self.ep_rec_paise: list[int] = []      # recovered amount per episode (0 if not)
+        self.ep_cost_paise: list[int] = []     # action cost attributed per episode
+        self.ep_complaint: list[int] = []      # 1 when COMPLAINT occurred
+
 
 
 class _NullRedis:
@@ -170,6 +175,8 @@ def _run_arm_inner(
     ep_state: dict[int, dict] = {}
     contacts: dict[int, int] = {}
     waits: dict[int, int] = {}
+    ep_costs: dict[int, int] = {}
+    ep_complaint: dict[int, int] = {}
 
     # ---- schedule openings + organic pay possibilities -----------------------
     for k, ev_spec in enumerate(batch.events):
@@ -306,6 +313,7 @@ def _run_arm_inner(
                     contacts[k] = contacts.get(k, 0) + 1
                     result.contacts += 1
                 result.cost_paise += int(row["cost_paise"])
+                ep_costs[k] = ep_costs.get(k, 0) + int(row["cost_paise"])
                 # schedule the simulator's stochastic response on the timeline
                 for t_off, kind_ev, payload in dr.sim_events:
                     if kind_ev == "pay":
@@ -348,6 +356,8 @@ def _run_arm_inner(
             if st is None:
                 continue
             label = evt.payload.get("label", "AMBIGUOUS")
+            if label == "COMPLAINT":
+                ep_complaint[k] = 1
             if label in ("COMPLAINT", "OPTOUT"):
                 ev = batch.events[k]
                 cust = truth_by_idx[ev.customer_idx]
@@ -376,6 +386,14 @@ def _run_arm_inner(
 
     # 72h expiry sweep for everything still open
     outcome_ops.expire_due(session, horizon)
+
+    # per-episode CI arrays (episode order stable)
+    for kk in range(result.episodes_total):
+        st_k = ep_state.get(kk)
+        rec_amt = batch.events[kk].amount_paise if (st_k and st_k.get("recovered")) else 0
+        result.ep_rec_paise.append(rec_amt)
+        result.ep_cost_paise.append(ep_costs.get(kk, 0))
+        result.ep_complaint.append(ep_complaint.get(kk, 0))
 
     # ---- final tallies (statuses of this run's episodes) -----------------------
     if ep_state:

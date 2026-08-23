@@ -121,10 +121,11 @@ def login(body: LoginRequest, request: Request) -> dict:
 
 
 @app.post("/webhooks/razorpay")
-def webhook_razorpay(request: Request) -> WebhookAck:
+async def webhook_razorpay(request: Request) -> WebhookAck:
     import os
 
-    raw = request.scope.get("raw_body") or b""
+    raw = await request.body()
+    request.scope["raw_body"] = raw
     signature = request.headers.get("X-Razorpay-Signature")
     secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "dev-webhook-secret")
 
@@ -145,6 +146,7 @@ def webhook_razorpay(request: Request) -> WebhookAck:
     redis = app.state.redis
     try:
         result = ingest_event(session, source=EventSource.LIVE_TM, normalized=normalized)
+        session.commit()
         if result.accepted and result.episode_id:
             _bump(redis, "events_ingested")
             _bump(redis, "episodes_created")
@@ -154,7 +156,7 @@ def webhook_razorpay(request: Request) -> WebhookAck:
             _bump(redis, "duplicates_collapsed")
         return WebhookAck(accepted=result.accepted, duplicate=result.duplicate, episode_id=result.episode_id)
     finally:
-        pass  # commit handled by agent_session generator semantics
+        session.close()
 
 
 def _security_event(request: Request, kind: str) -> None:

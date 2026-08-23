@@ -35,7 +35,7 @@ def live(request: Request, arm: str | None = Query(default=None), user: dict[str
                 """
                 SELECT COALESCE(sum(e.amount_paise),0) FROM runtime.outcomes o
                 JOIN runtime.episodes e ON e.id = o.episode_id
-                WHERE o.outcome = 'recovered' AND (:arm IS NULL OR e.arm::text = :arm)
+                WHERE o.outcome = 'recovered' AND (CAST(:arm AS text) IS NULL OR e.arm::text = :arm)
                 """
             ),
             {"arm": arm},
@@ -120,7 +120,7 @@ def eval_metrics(
                        r.created_at, m.metric, m.value::float8 AS value,
                        m.ci_low::float8 AS ci_low, m.ci_high::float8 AS ci_high, m.seed
                 FROM eval.eval_runs r LEFT JOIN eval.eval_metrics m ON m.run_id = r.id
-                WHERE (:run_id IS NULL OR r.id::text = :run_id)
+                WHERE (CAST(:run_id AS text) IS NULL OR r.id::text = :run_id)
                 ORDER BY r.created_at DESC
                 """
             ),

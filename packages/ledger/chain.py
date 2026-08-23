@@ -172,34 +172,29 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
 
 
 def verify_db(session: Session) -> tuple[bool, int | None, int]:
-    stmt = (
-        select(
-            ActionLedgerRow.seq,
-            ActionLedgerRow.event,
-            ActionLedgerRow.prev_hash,
-            ActionLedgerRow.hash,
+    stmt = session.execute(
+        text(
+            "SELECT seq, event, prev_hash, hash FROM runtime.action_ledger ORDER BY seq"
         )
-        .order_by(ActionLedgerRow.seq)
-        .execution_options(yield_per=1000)
     )
     valid = True
     first_bad: int | None = None
     checked = 0
     expected_seq = 0
     prev = GENESIS_PREV
-    for chunk in stmt.partitions():
-        for seq, event, prev_hash, digest in chunk:
-            checked += 1
-            expected_seq += 1
-            ok = (
-                int(seq) == expected_seq
-                and prev_hash == prev
-                and compute_hash(int(seq), prev, dict(event)) == digest
-            )
-            if not ok and valid:
-                valid = False
-                first_bad = int(seq)
-            prev = digest if ok else prev
+    for seq, event, prev_hash, digest in stmt:
+        checked += 1
+        expected_seq += 1
+        ok = (
+            int(seq) == expected_seq
+            and prev_hash == prev
+            and compute_hash(int(seq), prev, dict(event)) == digest
+        )
+        if not ok and valid:
+            valid = False
+            first_bad = int(seq)
+        if ok:
+            prev = digest
     return valid, first_bad, checked
 
 

@@ -51,9 +51,9 @@ def list_episodes(
                     SELECT * FROM runtime.diagnoses dx WHERE dx.episode_id = e.id
                     ORDER BY dx.created_at DESC LIMIT 1
                 ) d ON true
-                WHERE (:status IS NULL OR e.status::text = :status)
-                  AND (:arm IS NULL OR e.arm::text = :arm)
-                  AND (:code IS NULL OR d.canonical_code::text = :code)
+                WHERE (CAST(:status AS text) IS NULL OR e.status::text = :status)
+                  AND (CAST(:arm AS text) IS NULL OR e.arm::text = :arm)
+                  AND (CAST(:code AS text) IS NULL OR d.canonical_code::text = :code)
                 ORDER BY e.opened_at DESC
                 LIMIT :limit OFFSET :offset
                 """

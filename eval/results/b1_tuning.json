@@ -1,0 +1,237 @@
+{
+  "[SIMULATED]": true,
+  "note": "B1 tuning search on DEV seeds only; eval seeds untouched (eval/PROTOCOL.md \u00a73). Pre-registered default remains the shipped configuration unless the search shows a materially better one.",
+  "pre_registered_default": {
+    "retry_offsets_hours": [
+      0.0,
+      6.0,
+      24.0
+    ],
+    "sms_offsets_hours": [
+      2.0,
+      30.0
+    ]
+  },
+  "grid": {
+    "retry_offsets_hours": [
+      [
+        0.0,
+        6.0,
+        24.0
+      ],
+      [
+        0.0,
+        1.0,
+        12.0
+      ],
+      [
+        0.0,
+        12.0,
+        48.0
+      ]
+    ],
+    "sms_offsets_hours": [
+      [
+        2.0,
+        30.0
+      ],
+      [
+        1.0,
+        24.0
+      ],
+      [
+        6.0,
+        48.0
+      ]
+    ]
+  },
+  "search_table": [
+    {
+      "retry_offsets_hours": [
+        0.0,
+        6.0,
+        24.0
+      ],
+      "sms_offsets_hours": [
+        2.0,
+        30.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 429.3
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        6.0,
+        24.0
+      ],
+      "sms_offsets_hours": [
+        1.0,
+        24.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 429.5
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        6.0,
+        24.0
+      ],
+      "sms_offsets_hours": [
+        6.0,
+        48.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 429.8
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        1.0,
+        12.0
+      ],
+      "sms_offsets_hours": [
+        2.0,
+        30.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 430.4
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        1.0,
+        12.0
+      ],
+      "sms_offsets_hours": [
+        1.0,
+        24.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 431.2
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        1.0,
+        12.0
+      ],
+      "sms_offsets_hours": [
+        6.0,
+        48.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 430.7
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        12.0,
+        48.0
+      ],
+      "sms_offsets_hours": [
+        2.0,
+        30.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 430.3
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        12.0,
+        48.0
+      ],
+      "sms_offsets_hours": [
+        1.0,
+        24.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 429.5
+    },
+    {
+      "retry_offsets_hours": [
+        0.0,
+        12.0,
+        48.0
+      ],
+      "sms_offsets_hours": [
+        6.0,
+        48.0
+      ],
+      "dev_recovery_rate_pct_per_seed": [
+        19.65,
+        19.6
+      ],
+      "mean": 19.63,
+      "secs": 430.3
+    }
+  ],
+  "best": {
+    "retry_offsets_hours": [
+      0.0,
+      6.0,
+      24.0
+    ],
+    "sms_offsets_hours": [
+      2.0,
+      30.0
+    ],
+    "dev_recovery_rate_pct_per_seed": [
+      19.65,
+      19.6
+    ],
+    "mean": 19.63,
+    "secs": 429.3
+  },
+  "chosen": {
+    "retry_offsets_hours": [
+      0.0,
+      6.0,
+      24.0
+    ],
+    "sms_offsets_hours": [
+      2.0,
+      30.0
+    ],
+    "dev_recovery_rate_pct_per_seed": [
+      19.65,
+      19.6
+    ],
+    "mean": 19.63,
+    "secs": 429.3
+  }
+}

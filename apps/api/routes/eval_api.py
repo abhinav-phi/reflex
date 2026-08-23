@@ -43,13 +43,11 @@ def run_eval(
     if redis.get("reflex:eval:running"):
         raise HTTPException(status_code=409, detail="an eval run is already in progress")
 
-    from reflex.eval.runner import run_protocol_async
-
     config = body.config or None
     import threading
 
-    thread = threading.Thread(target=_run_bg, args=(config,), daemon=True)
     redis.set("reflex:eval:running", "1")
+    thread = threading.Thread(target=_run_bg, args=(config,), daemon=True)
     thread.start()
     return {"ok": True, "note": "protocol run started; results appear in /api/metrics/eval [SIMULATED]"}
 

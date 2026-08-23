@@ -41,14 +41,16 @@ def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo:
     eval_s = eval_sessionmaker()()
     agent_s = agent_sessionmaker()()
     try:
-        batch_id, batch, customer_ids = _prepare_batch_rows(eval_s, agent_s, seed=seed, n=n, arm=arm)
+        batch_id, (batch, customer_ids, _merchant) = _prepare_batch_rows(
+            eval_s, agent_s, seed=seed, n=n, arm=arm
+        )
         sim_start = datetime.now(timezone.utc).replace(microsecond=0)
         clock = SimClock(redis_client)
         clock.configure(sim_start=sim_start, speed=speed)
 
         batches = [{"id": batch_id, "arm": arm}]
         if demo:
-            twin_id, _b2, cust2 = _prepare_batch_rows(eval_s, agent_s, seed=seed, n=n)
+            twin_id, (_b2, _c2, _m2) = _prepare_batch_rows(eval_s, agent_s, seed=seed, n=n)
             batches.append({"id": twin_id, "arm": Arm.B1})
 
         with _state_lock:

@@ -122,21 +122,23 @@ class ShieldDecision:
 def evaluate(inp: ShieldInput) -> ShieldDecision:
     """Run all checks in fixed order (AppFlow §5 step 4); fail-closed."""
     checks: list[dict[str, Any]] = []
-    ctx: dict[str, Any] = {
-        "mode": inp.mode.value,
-        "caps": f"{inp.episode.actions_used}/{inp.guardrails.caps_per_episode}",
-        "contacts_today": f"{inp.episode.contacts_today}/{inp.guardrails.contacts_per_day}",
-        "budget_spent_today_paise": inp.budget_spent_today_paise,
-        "quiet_hours_clear": not in_quiet_hours(inp.now_sim),
-        "now_sim": inp.now_sim.isoformat(),
-        "suppressed": inp.episode.suppressed,
-        "dnd": inp.episode.dnd_flag,
-    }
+    ctx: dict[str, Any] = {}
 
     def record(name: str, ok: bool, detail: str) -> None:
         checks.append({"check": name, "ok": ok, "detail": detail})
 
     try:
+        ctx = {
+            "mode": inp.mode.value,
+            "caps": f"{inp.episode.actions_used}/{inp.guardrails.caps_per_episode}",
+            "contacts_today": f"{inp.episode.contacts_today}/{inp.guardrails.contacts_per_day}",
+            "budget_spent_today_paise": inp.budget_spent_today_paise,
+            "quiet_hours_clear": not in_quiet_hours(inp.now_sim),
+            "now_sim": inp.now_sim.isoformat(),
+            "suppressed": inp.episode.suppressed,
+            "dnd": inp.episode.dnd_flag,
+        }
+
         # Fixed order per AppFlow §5: kill switch → mode → cap → contacts/day →
         # quiet hours → budget → suppression → value/approval triggers.
         if inp.mode is Mode.HALTED:

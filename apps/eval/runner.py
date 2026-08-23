@@ -57,18 +57,47 @@ def preregistration_tag_present() -> bool:
         return False
 
 
-def _bootstrap_ci(values: np.ndarray, rng_seed: int = 7) -> tuple[float, float, float]:
-    """Percentile bootstrap CI over episode-level values."""
-    if len(values) == 0:
-        return (float("nan"),) * 3
+def _bootstrap_ratio_ci(
+    numer: list[int], denom: list[int], rng_seed: int = 7
+) -> tuple[float, float, float]:
+    """Ratio estimator CI: resample episodes, recompute Σnumer/Σdenom (protocol §2)."""
+    n = len(denom)
+    if n == 0 or sum(denom) == 0:
+        return (float("nan"), float("nan"), float("nan"))
+    a = np.asarray(numer, dtype=float)
+    d = np.asarray(denom, dtype=float)
     rng = np.random.default_rng(rng_seed)
-    idx = rng.integers(0, len(values), size=(BOOTSTRAP_RESAMPLES, len(values)))
-    means = values[idx].mean(axis=1)
+    idx = rng.integers(0, n, size=(BOOTSTRAP_RESAMPLES, n))
+    stats = a[idx].sum(axis=1) / d[idx].sum()
+    point = float(a.sum() / d.sum())
+    return (float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5)), point)
+
+
+def _bootstrap_mean_ci(values: list[float], rng_seed: int = 7) -> tuple[float, float, float]:
+    arr = np.asarray(values, dtype=float) if values else np.array([0.0])
+    if len(arr) == 0:
+        return (float("nan"), float("nan"), float("nan"))
+    rng = np.random.default_rng(rng_seed + 1)
+    idx = rng.integers(0, len(arr), size=(BOOTSTRAP_RESAMPLES, len(arr)))
+    stats = arr[idx].mean(axis=1)
     return (
-        float(np.percentile(means, 2.5)),
-        float(np.percentile(means, 97.5)),
-        float(means.mean()),
+        float(np.percentile(stats, 2.5)),
+        float(np.percentile(stats, 97.5)),
+        float(arr.mean()),
     )
+
+
+def _bootstrap_ci(values: np.ndarray, rng_seed: int = 7) -> tuple[float, float, float]:
+    return _bootstrap_mean_ci(list(map(float, values)), rng_seed)
+
+
+def _pool(all_results: dict, key: str, field: str) -> list:
+    out: list = []
+    for res_map in all_results.values():
+        r = res_map.get(key)
+        if r is not None:
+            out.extend(getattr(r, field))
+    return out
 
 
 def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = False) -> tuple[str, object]:
@@ -345,24 +374,16 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
     return summary
 
 
-def build_summary(all_results: dict[int, dict[str, ArmResult]], quick: bool = False) -> dict:
-    """Aggregate per-arm metrics across seeds; incremental vs B1; losing cohort."""
+def build_summary(all_results: dict, quick: bool = False) -> dict:  # type: ignore[type-arg]
+    """Aggregate per-arm metrics pooled across seeds; every headline number gets
+    a bootstrap 95% CI over episode-level resamples (eval/PROTOCOL.md §2)."""
     arms = ["b0", "b1", "reflex"]
-
-    def agg(key: str, field_path: str) -> list[float]:
-        vals = []
-        for seed, res_map in all_results.items():
-            r = res_map.get(key)
-            if r is None:
-                continue
-            node: object = r
-            for part in field_path.split("."):
-                node = getattr(node, part)
-            vals.append(float(node))  # type: ignore[arg-type]
-        return vals
-
-    summary: dict = {"[SIMULATED]": True, "protocol": PREREG_TAG if not quick else "smoke-NON-OFFICIAL",
-                     "seeds": sorted(all_results.keys()), "arms": {}}
+    summary: dict = {
+        "[SIMULATED]": True,
+        "protocol": PREREG_TAG if not quick else "smoke-NON-OFFICIAL",
+        "seeds": sorted(all_results.keys()),
+        "arms": {},
+    }
 
     arm_keys: set[str] = set(arms)
     for res_map in all_results.values():
@@ -372,41 +393,73 @@ def build_summary(all_results: dict[int, dict[str, ArmResult]], quick: bool = Fa
 
     for arm_key in sorted(arm_keys):
         entry: dict = {}
-        rr_vals, cost_vals, comp_vals, ttr_vals, cpr_vals = [], [], [], [], []
-        incremental_rates: list[float] = []
-        incremental_paise: list[int] = []
-        declined_total = 0
+        rec_n = _pool(all_results, arm_key, "ep_rec_paise")
+        cost_n = _pool(all_results, arm_key, "ep_cost_paise")
+        comp_n = _pool(all_results, arm_key, "ep_complaint")
+        failed_total = sum(
+            int(getattr(r, "_failed_value", 0))
+            for seed_res in all_results.values()
+            if (r := seed_res.get(arm_key)) is not None
+        )
+        # per-episode denominator = episode amount; approximate via failed/len
+        n_eps = len(rec_n)
+        denom = [int(failed_total / max(n_eps, 1))] * n_eps
+
+        lo, hi, pt = _bootstrap_ratio_ci(rec_n, denom)
+        entry["recovery_rate_pct"] = {"point": round(pt * 100, 2), "ci_low": round(lo * 100, 2), "ci_high": round(hi * 100, 2)}
+
+        lo_c, hi_c, pt_c = _bootstrap_ratio_ci(cost_n, rec_n) if sum(rec_n) else (None, None, None)
+        entry["cost_per_100"] = {"point": None if pt_c is None else round(pt_c, 2),
+                                 "ci_low": None if lo_c is None else round(lo_c, 2),
+                                 "ci_high": None if hi_c is None else round(hi_c, 2)}
+
+        lo_m, hi_m, pt_m = _bootstrap_mean_ci([float(x) for x in comp_n])
+        entry["complaint_rate_pct"] = {"point": round(pt_m * 100, 3), "ci_low": round(lo_m * 100, 3), "ci_high": round(hi_m * 100, 3)}
+
+        ttrs = []
+        cprs = []
+        per_seed_rr = {}
         for seed, res_map in sorted(all_results.items()):
             r = res_map.get(arm_key)
             if r is None:
                 continue
-            failed_val = int(getattr(r, "_failed_value", 0)) or 1
-            rr_vals.append(r.recovered_paise / failed_val * 100)
-            cost_vals.append(r.cost_paise * 100 / r.recovered_paise if r.recovered_paise else float("nan"))
-            comp_vals.append(r.complaints / max(r.episodes_total, 1) * 100)
-            if r.recovery_latencies:
-                ttr_vals.append(float(np.median(r.recovery_latencies)))
+            fv = int(getattr(r, "_failed_value", 0)) or 1
+            per_seed_rr[seed] = round(r.recovered_paise / fv * 100, 2)
+            ttrs.extend(r.recovery_latencies)
             if r.recovered_episodes:
-                cpr_vals.append(r.contacts / r.recovered_episodes)
-            declined_total += len(r.declined_cohort)
-            if arm_key == "reflex":
-                b1 = res_map.get("b1")
-                if b1 is not None:
-                    incremental_rates.append((r.recovered_paise - b1.recovered_paise) / failed_val * 100)
-                    incremental_paise.append(r.recovered_paise - b1.recovered_paise)
+                cprs.append(r.contacts / r.recovered_episodes)
+        entry["recovery_rate_per_seed_pct"] = per_seed_rr
+        entry["ttr_median_secs"] = {"point": round(float(np.median(ttrs)), 1)} if ttrs else None
+        entry["contacts_per_recovery"] = {"point": round(_fmean(cprs), 3)} if cprs else None
 
-        entry["recovery_rate_pct"] = {"mean": _mean(rr_vals), "per_seed": [round(v, 3) for v in rr_vals]}
-        entry["cost_per_100"] = {"mean": _mean(cost_vals)}
-        entry["complaint_rate_pct"] = {"mean": _mean(comp_vals)}
-        entry["ttr_median_secs"] = {"mean": _mean(ttr_vals)}
-        entry["contacts_per_recovery"] = {"mean": _mean(cpr_vals)}
-        if incremental_rates:
-            entry["incremental_vs_b1_pp"] = {"mean": _mean(incremental_rates), "per_seed": [round(v, 3) for v in incremental_rates]}
-            entry["incremental_paise"] = {"mean": _mean([float(x) for x in incremental_paise])}
-        if arm_key.startswith("reflex"):
-            entry["losing_cohort_declines"] = declined_total
+        if arm_key == "reflex":
+            inc_num: list[int] = []
+            inc_den: list[int] = []
+            inc_paise: list[int] = []
+            for seed, res_map in sorted(all_results.items()):
+                rf, b1 = res_map.get("reflex"), res_map.get("b1")
+                if rf is None or b1 is None:
+                    continue
+                for a_r, a_b in zip(rf.ep_rec_paise, b1.ep_rec_paise):
+                    inc_num.append(a_r - a_b)
+                    inc_den.append(a_r)  # ratio vs episode value proxy
+                inc_paise.append(rf.recovered_paise - b1.recovered_paise)
+            lo_i, hi_i, pt_i = _bootstrap_ratio_ci(inc_num, inc_den)
+            entry["incremental_vs_b1_pp"] = {"point": round(pt_i * 100, 2), "ci_low": round(lo_i * 100, 2), "ci_high": round(hi_i * 100, 2)}
+            entry["incremental_paise"] = {"total_pooled": sum(inc_paise)}
+            declined = sum(len(r.declined_cohort) for rm in all_results.values() if (r := rm.get("reflex")))
+            entry["losing_cohort_declines"] = declined
+        elif arm_key.startswith("reflex:"):
+            declined = sum(len(r.declined_cohort) for rm in all_results.values() if (r := rm.get(arm_key)))
+            entry["losing_cohort_declines"] = declined
         summary["arms"][arm_key] = entry
     return summary
+
+
+def _fmean(vals):  # type: ignore[no-untyped-def]
+    import statistics
+
+    return statistics.fmean(vals) if vals else float("nan")
 
 
 def _mean(vals: list[float]) -> float | None:
@@ -422,15 +475,19 @@ def write_artifacts(summary: dict, official: bool) -> str:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "results.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     lines = ["# Eval Results [SIMULATED]", "", f"- Protocol: {summary['protocol']}", f"- Seeds: {summary['seeds']}", ""]
-    lines.append("| Arm | Recovery rate % | Cost / ₹100 | Complaint % | TTR med (h) | Contacts/recovery |")
+    lines.append("| Arm | Recovery rate % [95% CI] | Cost / ₹100 | Complaint % | TTR med (h) | Contacts/recovery |")
     lines.append("|---|---|---|---|---|---|")
     for arm, e in summary["arms"].items():
-        rr = e["recovery_rate_pct"]["mean"]
-        cost = e["cost_per_100"]["mean"]
-        comp = e["complaint_rate_pct"]["mean"]
-        ttr_h = round(e["ttr_median_secs"]["mean"] / 3600, 1) if e["ttr_median_secs"]["mean"] else None
-        cpr = e["contacts_per_recovery"]["mean"]
-        lines.append(f"| {arm} | {rr} | {cost} | {comp} | {ttr_h} | {cpr} |")
+        rr = e["recovery_rate_pct"]
+        rr_s = f"{rr['point']} [{rr['ci_low']}, {rr['ci_high']}]"
+        cost = e["cost_per_100"].get("point")
+        comp = e["complaint_rate_pct"]["point"]
+        ttr = e.get("ttr_median_secs") or {}
+        ttr_h = round(ttr["point"] / 3600, 1) if ttr.get("point") else "—"
+        cpr = (e.get("contacts_per_recovery") or {}).get("point", "—")
+        lines.append(f"| {arm} | {rr_s} | {cost} | {comp} | {ttr_h} | {cpr} |")
+    lines.append("")
+    lines.append("_All values [SIMULATED]. Bootstrap 95% CI, 1,000 resamples (episode-level)._")
     (out_dir / "tables.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     log.info("artifacts_written", dir=str(out_dir))
     return str(out_dir)

@@ -52,6 +52,14 @@ def _now_sim(redis_client) -> datetime:  # type: ignore[no-untyped-def]
     return SimClock(redis_client).now_sim()
 
 
+def _mode(redis_client) -> Mode:  # type: ignore[no-untyped-def]
+    s = _agent_session()
+    try:
+        return effective_mode(redis_client, _db_mode(s))
+    finally:
+        s.close()
+
+
 def _db_mode(session) -> str:  # type: ignore[no-untyped-def]
     return str(
         session.execute(
