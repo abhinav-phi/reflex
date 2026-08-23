@@ -53,11 +53,11 @@ _ENUMS: dict[str, tuple[str, ...]] = {
 
 # AppFlow §14 state machines — the DB trigger is a safety net mirroring the code SM.
 _EPISODE_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "waiting_diagnosis": ("diagnosed", "halted", "expired"),
-    "diagnosed": ("waiting_approval", "scheduled", "diagnosed", "stopped_low_ev", "expired", "halted"),
-    "waiting_approval": ("scheduled", "stopped_approval_declined", "expired", "halted"),
-    "scheduled": ("acted", "halted", "expired"),
-    "acted": ("observing", "halted", "expired"),
+    "waiting_diagnosis": ("diagnosed", "halted", "expired", "recovered", "stopped_customer"),
+    "diagnosed": ("waiting_approval", "scheduled", "diagnosed", "stopped_low_ev", "expired", "halted", "recovered", "stopped_customer"),
+    "waiting_approval": ("scheduled", "stopped_approval_declined", "expired", "halted", "recovered", "stopped_customer"),
+    "scheduled": ("acted", "halted", "expired", "recovered", "stopped_customer"),
+    "acted": ("observing", "halted", "expired", "stopped_customer"),
     "observing": (
         "recovered", "diagnosed", "stopped_cap", "stopped_low_ev", "stopped_customer",
         "escalated", "expired", "halted",
@@ -76,7 +76,7 @@ _ACTION_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "proposed": ("shield_pass", "blocked", "waiting_approval", "cancelled_halt"),
     "shield_pass": ("scheduled", "waiting_approval", "blocked", "cancelled_halt", "superseded"),
     "waiting_approval": ("scheduled", "blocked", "cancelled_halt", "superseded"),
-    "scheduled": ("dispatched", "parked", "cancelled_halt", "superseded"),
+    "scheduled": ("dispatched", "parked", "cancelled_halt", "superseded", "blocked"),
     "dispatched": ("delivered_sim", "parked", "failed"),
     "delivered_sim": ("observed", "parked"),
     "observed": ("succeeded", "failed"),
@@ -140,6 +140,7 @@ def upgrade() -> None:
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             email TEXT NOT NULL UNIQUE,
             role runtime.role NOT NULL,
+            password_hash TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )""")
     op.execute("""
@@ -213,6 +214,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX idx_episodes_status ON runtime.episodes (status)")
     op.execute("CREATE INDEX idx_episodes_arm_status ON runtime.episodes (arm, status)")
     op.execute("CREATE INDEX idx_episodes_customer ON runtime.episodes (customer_id)")
+    op.execute("CREATE INDEX idx_episodes_closes ON runtime.episodes (closes_at)")
     op.execute(
         "ALTER TABLE runtime.payment_events "
         "ADD COLUMN episode_id UUID REFERENCES runtime.episodes(id)"

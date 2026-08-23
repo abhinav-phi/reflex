@@ -22,6 +22,24 @@ from sqlalchemy.orm import Session
 LEDGER_LOCK_KEY = 723301  # pg advisory lock id for global append serialization
 GENESIS_PREV = "0" * 64
 
+# Eval pipelines enable this per-thread: each arm-run is the single appender
+# inside its own transaction, so the advisory lock + head re-read are skipped.
+# Hash semantics identical either way. ContextVar ⇒ safe under parallel arms.
+import contextvars
+
+_FAST_MODE: contextvars.ContextVar[bool] = contextvars.ContextVar("reflex_fast_ledger", default=False)
+
+
+class fast_ledger:
+    """Context manager enabling single-writer fast appends (Proof harness only)."""
+
+    def __enter__(self) -> "fast_ledger":
+        self._token = _FAST_MODE.set(True)
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        _FAST_MODE.reset(self._token)
+
 
 def canonical_event(event: dict[str, Any]) -> bytes:
     return json.dumps(
@@ -40,12 +58,23 @@ def compute_hash(seq: int, prev_hash: str, event: dict[str, Any]) -> str:
 
 
 class LedgerWriter:
-    """Appends events to runtime.action_ledger. Concurrency-safe via advisory lock."""
+    """Appends events to runtime.action_ledger.
 
-    def __init__(self, session: Session) -> None:
+    Runtime mode (default): concurrency-safe via pg advisory lock + fresh head read.
+    Eval mode (`fast=True`): the writer is the only appender in its transaction;
+    caches the chain head in memory and skips the advisory lock (one INSERT per
+    event instead of three round-trips). Hash semantics identical.
+    """
+
+    def __init__(self, session: Session, *, fast: bool | None = None) -> None:
         self.s = session
+        self.fast = _FAST_MODE.get() if fast is None else fast
+        self._seq: int | None = None
+        self._prev: str = GENESIS_PREV
 
     def head(self) -> tuple[int, str]:
+        if self.fast and self._seq is not None:
+            return self._seq, self._prev
         row = self.s.execute(
             text("SELECT seq, hash FROM runtime.action_ledger ORDER BY seq DESC LIMIT 1")
         ).first()
@@ -62,7 +91,8 @@ class LedgerWriter:
         action_id: Any | None = None,
         at: datetime | None = None,
     ) -> tuple[int, str]:
-        self.s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LEDGER_LOCK_KEY})
+        if not self.fast:
+            self.s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LEDGER_LOCK_KEY})
         last_seq, prev_hash = self.head()
         seq = last_seq + 1
         ev = dict(event)
@@ -83,6 +113,8 @@ class LedgerWriter:
                 "at": at,
             },
         )
+        self._seq = seq
+        self._prev = digest
         return seq, digest
 
 

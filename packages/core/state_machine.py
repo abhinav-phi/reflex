@@ -10,8 +10,11 @@ from __future__ import annotations
 from reflex.core.enums import ActionStatus, EpisodeStatus
 
 EPISODE_TRANSITIONS: dict[EpisodeStatus, frozenset[EpisodeStatus]] = {
+    # A complaint/opt-out can arrive at ANY point in the episode lifecycle —
+    # STOPPED_CUSTOMER is legal from every non-terminal state (fail-safe direction).
     EpisodeStatus.WAITING_DIAGNOSIS: frozenset(
-        {EpisodeStatus.DIAGNOSED, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED}
+        {EpisodeStatus.DIAGNOSED, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED,
+         EpisodeStatus.RECOVERED, EpisodeStatus.STOPPED_CUSTOMER}
     ),
     EpisodeStatus.DIAGNOSED: frozenset(
         {
@@ -21,6 +24,8 @@ EPISODE_TRANSITIONS: dict[EpisodeStatus, frozenset[EpisodeStatus]] = {
             EpisodeStatus.STOPPED_LOW_EV,
             EpisodeStatus.EXPIRED,
             EpisodeStatus.HALTED,
+            EpisodeStatus.RECOVERED,  # organic capture while planning
+            EpisodeStatus.STOPPED_CUSTOMER,
         }
     ),
     EpisodeStatus.WAITING_APPROVAL: frozenset(
@@ -29,12 +34,18 @@ EPISODE_TRANSITIONS: dict[EpisodeStatus, frozenset[EpisodeStatus]] = {
             EpisodeStatus.STOPPED_APPROVAL_DECLINED,
             EpisodeStatus.EXPIRED,
             EpisodeStatus.HALTED,
+            EpisodeStatus.RECOVERED,  # customer paid while approval pending
+            EpisodeStatus.STOPPED_CUSTOMER,
         }
     ),
     EpisodeStatus.SCHEDULED: frozenset(
-        {EpisodeStatus.ACTED, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED}
+        {EpisodeStatus.ACTED, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED,
+         EpisodeStatus.RECOVERED, EpisodeStatus.STOPPED_CUSTOMER}
     ),
-    EpisodeStatus.ACTED: frozenset({EpisodeStatus.OBSERVING, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED}),
+    EpisodeStatus.ACTED: frozenset(
+        {EpisodeStatus.OBSERVING, EpisodeStatus.HALTED, EpisodeStatus.EXPIRED,
+         EpisodeStatus.STOPPED_CUSTOMER}
+    ),
     EpisodeStatus.OBSERVING: frozenset(
         {
             EpisodeStatus.RECOVERED,
@@ -76,7 +87,13 @@ ACTION_TRANSITIONS: dict[ActionStatus, frozenset[ActionStatus]] = {
         }
     ),
     ActionStatus.SCHEDULED: frozenset(
-        {ActionStatus.DISPATCHED, ActionStatus.PARKED, ActionStatus.CANCELLED_HALT, ActionStatus.SUPERSEDED}
+        {
+            ActionStatus.DISPATCHED,
+            ActionStatus.PARKED,
+            ActionStatus.CANCELLED_HALT,
+            ActionStatus.SUPERSEDED,
+            ActionStatus.BLOCKED,  # Shield re-check at dispatch time may block
+        }
     ),
     ActionStatus.DISPATCHED: frozenset(
         {ActionStatus.DELIVERED_SIM, ActionStatus.PARKED, ActionStatus.FAILED}

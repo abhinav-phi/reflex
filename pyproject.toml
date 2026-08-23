@@ -46,6 +46,8 @@ packages = [
     "reflex.api",
     "reflex.workers",
     "reflex.eval",
+    "data",
+    "data.generators",
 ]
 
 [tool.setuptools.package-dir]
@@ -58,9 +60,12 @@ packages = [
 "reflex.api" = "apps/api"
 "reflex.workers" = "apps/workers"
 "reflex.eval" = "apps/eval"
+"data" = "data"
+"data.generators" = "data/generators"
 
 [tool.setuptools.package-data]
 "reflex.prompts" = ["*.txt"]
+"data.generators" = ["*.jsonl"]
 
 [project.scripts]
 reflex-worker = "reflex.workers.runner:main"
