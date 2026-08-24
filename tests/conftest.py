@@ -10,9 +10,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-os.environ.setdefault("DATABASE_URL_ADMIN", "postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex")
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:5432/reflex")
-os.environ.setdefault("DATABASE_URL_EVAL", "postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:5432/reflex")
+os.environ.setdefault("DATABASE_URL_ADMIN", "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex")
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex")
+os.environ.setdefault("DATABASE_URL_EVAL", "postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:15432/reflex")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET", "test-secret-not-a-real-secret")
 

@@ -1,0 +1,23 @@
+# Reflex web (static command center) — build once, serve via nginx.
+# Multi-stage: node toolchain for vite build; runtime image is static files only.
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY apps/web/package.json apps/web/package-lock.json ./
+RUN npm ci
+COPY apps/web/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+# SPA fallback: every unknown route serves index.html (client-side router).
+RUN printf 'server {\n\
+  listen 80;\n\
+  root /usr/share/nginx/html;\n\
+  location /api/ { proxy_pass http://api:8000; }\n\
+  location /webhooks/ { proxy_pass http://api:8000; }\n\
+  location /healthz { proxy_pass http://api:8000; }\n\
+  location / {\n\
+    try_files $uri $uri/ /index.html;\n\
+  }\n\
+}\n' > /etc/nginx/conf.d/default.conf
+EXPOSE 80

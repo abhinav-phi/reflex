@@ -117,3 +117,45 @@ def test_no_endpoint_returns_replay_hidden_truth(client, auth_h, clean_db):  # t
     for item in eps.get("items", []):
         blob = json.dumps(item)
         assert "p_respond" not in blob and "intent" not in blob
+
+
+# ---- structured error envelope (Rules §6.2) ------------------------------------
+
+
+def test_error_envelope_shape_on_401_and_403(client):  # type: ignore[no-untyped-def]
+    r = client.post("/api/control/mode", json={"mode": "halted"})
+    assert r.status_code == 401
+    err = r.json()["error"]
+    assert set(err) >= {"code", "message"}
+    assert err["code"] == "UNAUTHORIZED"
+
+
+def test_error_envelope_shape_on_404(client, auth_h):  # type: ignore[no-untyped-def]
+    r = client.get(
+        "/api/episodes/00000000-0000-0000-0000-000000000000", headers=auth_h("viewer")
+    )
+    if r.status_code == 404:
+        assert r.json()["error"]["code"] == "NOT_FOUND"
+
+
+# ---- Idempotency-Key response store (Rules §1.4) --------------------------------
+
+
+def test_idempotency_key_replays_first_response(client):  # type: ignore[no-untyped-def]
+    h = {"Idempotency-Key": "test-suite-key-1"}
+    r1 = client.post("/api/auth/login",
+                     json={"email": "viewer@reflex.dev", "password": "reflex-demo"}, headers=h)
+    r2 = client.post("/api/auth/login",
+                     json={"email": "viewer@reflex.dev", "password": "reflex-demo"}, headers=h)
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r2.headers.get("Idempotent-Replay") == "true"
+    assert r1.json() == r2.json()
+
+
+def test_without_idempotency_key_request_executes_normally(client):  # type: ignore[no-untyped-def]
+    r1 = client.post("/api/auth/login",
+                     json={"email": "viewer@reflex.dev", "password": "reflex-demo"})
+    r2 = client.post("/api/auth/login",
+                     json={"email": "viewer@reflex.dev", "password": "reflex-demo"})
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert "Idempotent-Replay" not in r2.headers

@@ -32,6 +32,7 @@ class LlmResult:
     latency_ms: int
     cost_usd: float | None
     model: str | None
+    call_id: str | None = None  # runtime.llm_calls id (TASK-055 provenance)
 
 
 class LlmHealth:
@@ -94,7 +95,6 @@ class LlmClient:
         if not self.configured or self.health.is_outage():
             return None
 
-        prompt_hash = purpose_log.get("prompt_hash", "")
         redacted_input = _redact(purpose_log.get("input_redacted", {}))
         started = time.perf_counter()
         try:
@@ -119,9 +119,8 @@ class LlmClient:
             cost = _estimate_cost(usage, self.settings.llm_model)
             latency_ms = int((time.perf_counter() - started) * 1000)
             self.health.record_success()
-            result = LlmResult(ok=True, text=text, latency_ms=latency_ms, cost_usd=cost, model=self.settings.llm_model)
-            self._log_call(session, episode_id, purpose_log, redacted_input, {"raw": text}, True, latency_ms, cost)
-            return result
+            call_id = self._log_call(session, episode_id, purpose_log, redacted_input, {"raw": text}, True, latency_ms, cost)
+            return LlmResult(ok=True, text=text, latency_ms=latency_ms, cost_usd=cost, model=self.settings.llm_model, call_id=call_id)
         except Exception as exc:
             latency_ms = int((time.perf_counter() - started) * 1000)
             crossed = self.health.record_failure()
@@ -159,18 +158,19 @@ class LlmClient:
         valid: bool,
         latency_ms: int,
         cost_usd: float | None,
-    ) -> None:
+    ) -> str | None:
+        """Insert one llm_calls row; returns its id (None when unlogged)."""
         if session is None:
-            return
+            return None
         from sqlalchemy import text as sql_text
 
         try:
-            session.execute(
+            row = session.execute(
                 sql_text(
                     "INSERT INTO runtime.llm_calls "
                     "(episode_id, purpose, prompt_hash, input_redacted, output_json, valid, latency_ms, cost_usd, model) "
                     "VALUES (:ep, CAST(:purpose AS runtime.llm_purpose), :ph, CAST(:in_red AS jsonb), "
-                    "CAST(:out AS jsonb), :valid, :latency, :cost, :model)"
+                    "CAST(:out AS jsonb), :valid, :latency, :cost, :model) RETURNING id"
                 ),
                 {
                     "ep": episode_id,
@@ -183,9 +183,11 @@ class LlmClient:
                     "cost": cost_usd,
                     "model": self.settings.llm_model,
                 },
-            )
+            ).scalar()
+            return str(row) if row is not None else None
         except Exception as exc:  # logging must never break the pipeline
             log.error("llm_calls_log_failed", error=str(exc)[:200])
+            return None
 
 
 def _redact(obj: Any) -> Any:

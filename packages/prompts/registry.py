@@ -16,7 +16,7 @@ _TEMPLATES_DIR = Path(__file__).parent / "templates"
 PROMPTS: dict[str, str] = {
     "diagnosis": "diagnosis_v3.txt",
     "message": "message_v1.txt",
-    "reply_classify": "reply_classify_v1.txt",
+    "reply_classify": "reply_classify_v2.txt",  # v2: confidence output (TASK-054)
 }
 
 

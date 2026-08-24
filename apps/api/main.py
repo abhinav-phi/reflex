@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from reflex.api.db import agent_session, get_redis
@@ -74,6 +75,111 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Razorpay-Signature"],
 )
+
+
+# ---- structured error envelope (Rules §6.2: {error: {code, message, action?}}) ------
+
+_ERROR_CODES: dict[int, str] = {
+    400: "BAD_REQUEST", 401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND",
+    409: "CONFLICT", 410: "GONE", 422: "VALIDATION_ERROR", 429: "RATE_LIMITED",
+}
+
+
+def _envelope(status: int, message: str, action: str | None = None) -> JSONResponse:
+    err: dict = {"code": _ERROR_CODES.get(status, f"HTTP_{status}"), "message": message}
+    if action:
+        err["action"] = action
+    return JSONResponse(status_code=status, content={"error": err})
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_envelope(request: Request, exc: HTTPException):  # type: ignore[no-untyped-def]
+    return _envelope(exc.status_code, str(exc.detail))
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_envelope(request: Request, exc: RequestValidationError):  # type: ignore[no-untyped-def]
+    return _envelope(422, "request validation failed", action="fix request body and retry")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_envelope(request: Request, exc: Exception):  # type: ignore[no-untyped-def]
+    log.error("unhandled_api_exception", path=request.url.path, error=type(exc).__name__)
+    return _envelope(500, "internal error", action="retry; if persistent, check /ops")
+
+
+# ---- Idempotency-Key response store (Rules §1.4) ------------------------------------
+# POSTs to /api/* carrying an Idempotency-Key replay the FIRST response for the
+# key's TTL instead of re-executing (judge double-click safety). Absent header ⇒
+# pass-through (webhook dedup is provider-event-id based and lives outside /api).
+
+IDEMPOTENCY_TTL_SECS = 6 * 3600
+
+
+class IdempotencyMiddleware:
+    def __init__(self, app: object) -> None:
+        self.app = app  # type: ignore[attr-defined]
+
+    async def __call__(self, scope, receive, send):  # type: ignore[no-untyped-def]
+        if scope["type"] != "http" or scope.get("method") != "POST":
+            await self.app(scope, receive, send)  # type: ignore[attr-defined]
+            return
+        headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+        idem_key = headers.get("idempotency-key")
+        path = scope.get("path", "")
+        if not idem_key or not path.startswith("/api/"):
+            await self.app(scope, receive, send)  # type: ignore[attr-defined]
+            return
+
+        redis = getattr(app.state, "redis", None)
+        if redis is None:
+            await self.app(scope, receive, send)  # type: ignore[attr-defined]
+            return
+
+        auth = headers.get("authorization", "")
+        principal = auth[-24:] if auth else "anon"
+        store_key = f"reflex:idem:{principal}:{path}:{idem_key}"
+        try:
+            cached = redis.get(store_key)
+        except Exception:
+            cached = None
+        if cached:
+            # replay stored response via raw ASGI messages (never a bare return)
+            saved = json.loads(cached)
+            body = json.dumps(saved["body"]).encode()
+            await send({
+                "type": "http.response.start",
+                "status": saved["status"],
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"idempotent-replay", b"true"),
+                ],
+            })
+            await send({"type": "http.response.body", "body": body})
+            return
+
+        status_holder = {"status": 200}
+        body_chunks: list[bytes] = []
+
+        async def send_wrapper(message):  # type: ignore[no-untyped-def]
+            if message["type"] == "http.response.start":
+                status_holder["status"] = message["status"]
+            elif message["type"] == "http.response.body":
+                body_chunks.append(message.get("body", b""))
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)  # type: ignore[attr-defined]
+
+        if status_holder["status"] < 500 and body_chunks:
+            try:
+                body_bytes = b"".join(body_chunks)
+                saved_body = json.loads(body_bytes) if body_bytes else {}
+                redis.setex(store_key, IDEMPOTENCY_TTL_SECS, json.dumps({"status": status_holder["status"], "body": saved_body}))
+            except Exception:
+                pass  # non-JSON or storage failure ⇒ never break the live request
+
+
+app.add_middleware(IdempotencyMiddleware)
 
 
 # ---- health ------------------------------------------------------------------------

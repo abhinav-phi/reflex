@@ -5,7 +5,8 @@ PIP ?= pip
 .PHONY: help up down migrate seed demo dev-install test test-unit lint type eval-smoke reproduce web-install web-dev web-build ci
 
 help:
-	@echo "make up           - docker compose (postgres/redis/api/workers)"
+	@echo "Reflex - see README.md for overview, quickstart and troubleshooting"
+	@echo "make up           - docker compose (postgres/redis/api/workers/web) + migrate + seed"
 	@echo "make migrate      - apply Alembic migrations"
 	@echo "make seed         - idempotent seed (users, merchant, policy v1, corpora)"
 	@echo "make demo         - start demo slice (214 eps / Rs 2,41,000, seed demo-7, x100)"

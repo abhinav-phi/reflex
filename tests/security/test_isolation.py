@@ -69,11 +69,17 @@ def test_agent_code_never_references_replay_tables():
 
 
 def _agent_conn():  # type: ignore[no-untyped-def]
+    import os
+
     import psycopg
 
-    return psycopg.connect(
-        "postgresql://reflex_agent:agent_dev_pw@localhost:5432/reflex", autocommit=True
+    # honor env (conftest defaults) — hardcoded 5432 hangs on hosts where the
+    # port is firewalled/reserved (e.g., Windows excluded-port ranges)
+    url = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://reflex_agent:agent_dev_pw@localhost:15432/reflex",
     )
+    return psycopg.connect(url.replace("+psycopg", ""), autocommit=True)
 
 
 @pytest.mark.integration
@@ -88,10 +94,15 @@ def test_agent_role_cannot_read_replay(clean_db):  # type: ignore[no-untyped-def
 
 @pytest.mark.integration
 def test_agent_role_cannot_update_ledger(clean_db):  # type: ignore[no-untyped-def]
+    import os
+
     from sqlalchemy import create_engine, text
 
-    eng = create_engine(
-        "postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex")
+    admin_url = os.environ.get(
+        "DATABASE_URL_ADMIN",
+        "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex",
+    )
+    eng = create_engine(admin_url)
     with eng.begin() as c:
         c.execute(text(OPEN_EPISODE))
         ep = c.execute(text("SELECT id FROM runtime.episodes LIMIT 1")).scalar()

@@ -48,6 +48,7 @@ class ReplyIntentOutput(BaseModel):
 
     intent: Literal["PROMISE", "REFUSE", "COMPLAINT", "OPTOUT", "PAYING", "AMBIGUOUS"]
     promise_date: str | None = None
+    confidence: float = 1.0  # v2 schema (TASK-054); v1 outputs default to 1.0
     rationale: str
 
     @field_validator("promise_date")
@@ -58,6 +59,13 @@ class ReplyIntentOutput(BaseModel):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
             raise ValueError("promise_date must be ISO date or null")
         return v
+
+    @field_validator("confidence")
+    @classmethod
+    def _conf_range(cls, v: float) -> float:
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("confidence out of [0,1]")
+        return round(v, 2)
 
 
 def parse_json_object(raw: str) -> dict | None:

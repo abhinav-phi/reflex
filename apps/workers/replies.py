@@ -41,6 +41,7 @@ class ReplyClassification:
     promise_date: str | None
     method: str  # RULE | RULE+LLM | LLM | SAFE_DEFAULT
     rationale: str
+    confidence: float = 1.0
 
 
 def _rule_gate(text: str) -> tuple[str, str] | None:
@@ -69,7 +70,7 @@ def classify_reply(
     if ruled is not None:
         intent, kw = ruled
         log.info("reply_rule_gate", intent=intent, keyword=kw)
-        return ReplyClassification(intent, None, "RULE", f"keyword gate: {kw!r}")
+        return ReplyClassification(intent, None, "RULE", f"keyword gate: {kw!r}", 1.0)
 
     # 2) LLM classification with <data> wrapping + schema validation + retry-once
     if llm.configured and not llm.health.is_outage():
@@ -101,10 +102,22 @@ def classify_reply(
                 if result.ok:
                     parsed, valid = parse_reply_intent(result.text)
         if valid and parsed is not None:
+            # Confidence-gated fallback mirroring AI-1 (TASK-054): low-confidence
+            # NON-suppression classes downgrade to the safe AMBIGUOUS default.
+            # COMPLAINT/OPTOUT are exempt — suppression classes are fail-closed
+            # (a missed complaint is the trust-killer per PRD §14 AI-4).
+            conf = parsed.confidence
+            intent = parsed.intent
+            if conf < 0.6 and intent not in ("COMPLAINT", "OPTOUT"):
+                log.info("reply_low_confidence_default", llm_intent=intent, confidence=conf)
+                return ReplyClassification(
+                    "AMBIGUOUS", None, "SAFE_DEFAULT",
+                    f"low confidence {conf:.2f} on {intent}", conf,
+                )
             # LLM may flag complaint/optout the keywords missed — trust it for
             # suppression classes (fail-closed direction), but AMBIGUOUS stays safe.
             date = parsed.promise_date
-            return ReplyClassification(parsed.intent, date, "LLM", parsed.rationale[:120])
+            return ReplyClassification(intent, date, "LLM", parsed.rationale[:120], conf)
 
     # 3) safe default: treat as non-response (PRD §14 AI-4 failure behavior)
-    return ReplyClassification("AMBIGUOUS", None, "SAFE_DEFAULT", "classifier unavailable/invalid")
+    return ReplyClassification("AMBIGUOUS", None, "SAFE_DEFAULT", "classifier unavailable/invalid", 0.0)

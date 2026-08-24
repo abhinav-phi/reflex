@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Reflex — one-command reproduction from a clean clone (eval/PROTOCOL.md §4).
+# Reflex - one-command reproduction from a clean clone (see eval/PROTOCOL.md).
 # Target: < 15 min on the 4-core reference VM.
+# Troubleshooting (Windows port-range bind failures, etc.): README.md post-mortem section.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,9 +34,9 @@ if [ "$(uname)" = "Windows"* ] || [ -n "${WSL_DISTRO_NAME:-}" ] && [ -f ".venv/S
 fi
 $PIP install -e . --quiet
 
-export DATABASE_URL_ADMIN="${DATABASE_URL_ADMIN:-postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex}"
-export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:5432/reflex}"
-export DATABASE_URL_EVAL="${DATABASE_URL_EVAL:-postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:5432/reflex}"
+export DATABASE_URL_ADMIN="${DATABASE_URL_ADMIN:-postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex}"
+export DATABASE_URL_EVAL="${DATABASE_URL_EVAL:-postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:15432/reflex}"
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
 export PYTHONIOENCODING=utf-8
 

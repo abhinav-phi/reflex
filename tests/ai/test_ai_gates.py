@@ -41,6 +41,33 @@ def test_complain_precision_at_least_95_percent_offline_gate():
     assert precision >= 0.95, f"COMPLAIN precision {precision:.3f} < 0.95"
 
 
+def test_complain_recall_at_least_90_percent_offline_gate():
+    """AI-4 RECALL gate (TASK-054 / Rules §11.2): a missed complaint is the
+    trust-killer — zero-post-complaint-contact is a RECALL property. The keyword
+    rule-gate runs first as the deterministic recall net; every COMPLAINT-labeled
+    corpus row must land in COMPLAINT (suppressed) — never in a contact-worthy class."""
+    llm = _llm()
+    rows = [r for r in _rows(CORPUS) if r["label"] == "COMPLAINT"]
+    assert rows, "complaint corpus slice must not be empty"
+    caught = sum(
+        1 for r in rows if classify_reply(llm, reply_text=r["text"]).intent == "COMPLAINT"
+    )
+    recall = caught / len(rows)
+    assert recall >= 0.90, f"COMPLAIN recall {recall:.3f} < 0.90 ({len(rows)-caught} missed)"
+
+
+def test_low_confidence_llm_intent_downgrades_to_ambiguous():
+    """Confidence-gated fallback (TASK-054): LLM intent with confidence < 0.6 on
+    non-suppression classes ⇒ AMBIGUOUS safe default (mirrors AI-1)."""
+    from reflex.prompts.validators import ReplyIntentOutput
+
+    low = ReplyIntentOutput(intent="PROMISE", promise_date=None, confidence=0.4, rationale="unsure")
+    assert low.confidence < 0.6
+    # suppression classes are exempt from the downgrade (fail-closed)
+    sup = ReplyIntentOutput(intent="COMPLAINT", confidence=0.3, rationale="maybe")
+    assert sup.intent == "COMPLAINT"
+
+
 def test_optout_never_missed_by_keyword_gate():
     llm = _llm()
     rows = [r for r in _rows(CORPUS) if r["label"] == "OPTOUT"]
@@ -91,6 +118,8 @@ def test_diagnosis_injection_corpus_safe_offline():
                     reason="requires LLM_API_KEY")
 def test_diagnosis_holdout_accuracy_with_live_llm():
     """AI-1 gate: ≥85% on the labeled corpus (500-case holdout per PRD)."""
+    from datetime import datetime, timezone
+
     from data.generators.corpus_strings import all_labeled
     from reflex.core.enums import CanonicalCode
 

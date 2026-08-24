@@ -22,9 +22,12 @@ from reflex.core.enums import CanonicalCode, LtvBand, Rail
 
 SIMULATOR_VERSION = "sim-v1"
 
-# Failure mixture per Schema §13 (percent).
+# Failure mixture per Schema §13 (percent). v1.2 TASK-053 amendment: RISK_HELD
+# added (2%) so synthetic data covers all 11 canonical codes — INSUFFICIENT_FUNDS
+# rebalanced 34→32 to keep the total at 100%. Protocol amendment tag must be cut
+# BEFORE the official eval run (pre-registration discipline).
 CODE_MIXTURE: tuple[tuple[str, float], ...] = (
-    ("INSUFFICIENT_FUNDS", 34.0),
+    ("INSUFFICIENT_FUNDS", 32.0),
     ("AUTH_DECLINED_SOFT", 14.0),
     ("ISSUER_DOWNTIME", 12.0),
     ("MANDATE_REVOKED", 9.0),
@@ -33,6 +36,7 @@ CODE_MIXTURE: tuple[tuple[str, float], ...] = (
     ("MANDATE_LIMIT_BREACH", 5.0),
     ("CUSTOMER_INITIATED", 4.0),
     ("INVALID_VPA", 3.0),
+    ("RISK_HELD", 2.0),
     ("AMBIGUOUS_TAIL", 6.0),
 )
 

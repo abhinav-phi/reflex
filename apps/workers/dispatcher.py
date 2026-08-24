@@ -176,8 +176,14 @@ def dispatch_action(
         return DispatchResult("cancelled_halt", "kill switch active")
 
     # ---- Shield at dispatch time --------------------------------------------
+    # ctx must be defined for BOTH paths: eval arms pass ctx_override; the live
+    # worker path loads episode context from DB (previously a latent NameError
+    # on the unverified live loop — caught by lint during audit sync).
+    ctx = ctx_override
+    if ctx is None:
+        ctx = load_context(agent_session, str(action["episode_id"]))
     if ctx_override is not None:
-        outcome, decision_or_reason = _guard_with_ctx(ctx_override, action, now_sim, mode)
+        outcome, decision_or_reason = _guard_with_ctx(ctx, action, now_sim, mode)
     else:
         outcome, decision_or_reason = guard_at_dispatch(agent_session, action, now_sim, mode)
     ledger = LedgerWriter(agent_session)
@@ -209,6 +215,7 @@ def dispatch_action(
     # ---- message generation (contact channels) -------------------------------
     message_final: str | None = None
     llm_span_log: str | None = None
+    llm_call_id: str | None = None
     channel = action["channel"]
 
     link_hint = f"https://rzp.io/i/sim-{str(action['id'])[:8]}"
@@ -255,8 +262,6 @@ def dispatch_action(
             rp_result = {"simulated": True, "provider_ref": f"sim_{str(action['id'])[:12]}"}
             provider_ref = rp_result["provider_ref"]
 
-    if ctx_override is not None:
-        ctx = ctx_override
     contact_index = min(ctx.actions_used, 2)
     if channel and channel != Channel.RAZORPAY_TM.value or action["intervention"] in (
         Intervention.PAYMENT_LINK_PUSH.value,
@@ -280,6 +285,7 @@ def dispatch_action(
         )
         message_final = gen.final_text
         llm_span_log = gen.llm_span
+        llm_call_id = gen.llm_call_id
 
     # ---- LEDGER-FIRST: write before any send ---------------------------------
     try:
@@ -308,8 +314,8 @@ def dispatch_action(
         agent_session,
         action_id,
         ActionStatus.DISPATCHED,
-        ", dispatched_at = :da, message_final = :msg",
-        {"da": now_sim, "msg": message_final},
+        ", dispatched_at = :da, message_final = :msg, llm_call_id = CAST(:llm_call AS uuid)",
+        {"da": now_sim, "msg": message_final, "llm_call": llm_call_id},
     )
 
     sim_events: list[tuple[int, str, dict]] = []

@@ -7,7 +7,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reflex_dev_pg}
       POSTGRES_DB: ${POSTGRES_DB:-reflex}
-    ports: ["5432:5432"]
+    # Host port 15432 (not 5432): Windows reserves 5276-5875 via Hyper-V excluded
+    # port ranges, which covers 5432 and blocks container bind on some hosts.
+    # Container-to-container traffic inside compose still uses postgres:5432.
+    ports: ["15432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-reflex}"]
@@ -92,6 +95,14 @@ services:
       REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports: ["8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
 
 volumes:
   pgdata:

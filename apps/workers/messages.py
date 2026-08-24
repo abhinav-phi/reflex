@@ -35,6 +35,7 @@ class GeneratedMessage:
     llm_span: str | None  # None ⇒ template fallback used
     validator_rejected_reason: str | None
     template_used: bool
+    llm_call_id: str | None = None  # runtime.llm_calls provenance (TASK-055)
 
 
 _TEMPLATES: dict[tuple[str, str], str] = {
@@ -95,7 +96,7 @@ def generate_message(
 
     if not personalization_enabled or not llm.configured or llm.health.is_outage():
         # A3 ablation / degraded / unconfigured ⇒ deterministic template path
-        return GeneratedMessage(final_text=template, llm_span=None, validator_rejected_reason=None, template_used=True)
+        return GeneratedMessage(final_text=template, llm_span=None, validator_rejected_reason=None, template_used=True, llm_call_id=None)
 
     purpose_log = {
         "purpose": "message",
@@ -115,7 +116,7 @@ def generate_message(
     )
     if result is None or not result.ok:
         log.info("message_template_fallback", reason="llm_unavailable")
-        return GeneratedMessage(final_text=template, llm_span=None, validator_rejected_reason=None, template_used=True)
+        return GeneratedMessage(final_text=template, llm_span=None, validator_rejected_reason=None, template_used=True, llm_call_id=None)
 
     reason = MessageSpanValidator.reject_reason(result.text)
     if reason is not None:
@@ -132,10 +133,14 @@ def generate_message(
             llm_span=result.text,
             validator_rejected_reason=reason,
             template_used=True,
+            llm_call_id=result.call_id,
         )
 
     final = _inject_slots(result.text, slots)
-    return GeneratedMessage(final_text=final, llm_span=result.text, validator_rejected_reason=None, template_used=False)
+    return GeneratedMessage(
+        final_text=final, llm_span=result.text, validator_rejected_reason=None,
+        template_used=False, llm_call_id=result.call_id,
+    )
 
 
 def channel_for(intervention_channel: Channel | None) -> Channel | None:

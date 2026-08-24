@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Reflex - bounded, root-cause-diagnosing payment-recovery agent (Razorpay AI Buildathon Track 03)"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 dependencies = [
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
