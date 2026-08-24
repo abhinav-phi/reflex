@@ -151,7 +151,7 @@ What it does *(AUTOMATIC)*: verifies the `eval-preregistered-v1` git tag exists 
 Expected runtime: **< 15 minutes** on a 4-core VM (protocol target <10 min for the runs themselves).
 
 **Known limitation (honest):** the official N=3000×3 run has not been executed on our build host. Root cause was environmental — Windows reserves ports 5276–5875 (`netsh interface ipv4 show excludedportrange protocol=tcp`), covering Postgres' 5432, so the container couldn't bind. Workarounds:
-- Map Postgres to a port outside the reserved ranges and export `DATABASE_URL*` accordingly, e.g. `-p 15432:5432`; or
+- Custom Docker runs only: map Postgres to a host port outside the reserved ranges and export `DATABASE_URL*` accordingly, e.g. `-p 15432:5432` — note docker-compose.yml ALREADY defaults to host 15432 → container 5432, so compose runs need no manual flag; or
 - Re-reserve dynamic ports as admin: `net stop winnat && net start winnat`.
 
 If `reproduce.sh` fails on your host, inspect `eval/results/` for committed smoke-scale artifacts — and note they are smoke scale, **not citable results**.
@@ -179,7 +179,7 @@ If `reproduce.sh` fails on your host, inspect `eval/results/` for committed smok
 |---|---|---|
 | `SQLSTATE 42501` on `replay.sim_customers` | **Working as designed** — agent DB role isolation (ADR-004). | None. If you *wanted* the agent to read it: don't. |
 | `SQLSTATE 42501` on `action_ledger` UPDATE | Append-only grants doing their job. | Use INSERT (new event), never modify history. |
-| `ports are not available ... 5432` / bind forbidden (Windows) | Excluded-port ranges cover 5432 (Hyper-V reservation). | Map an alternate host port (e.g. 15432) + export `DATABASE_URL*`; or `net stop winnat && net start winnat` (admin). |
+| `ports are not available ... 5432` / bind forbidden (Windows) | Excluded-port ranges cover 5432 (Hyper-V reservation). | docker-compose.yml already defaults to host 15432 → container 5432, so compose runs are unaffected. Only custom Docker runs need the manual flag: map an alternate host port (e.g. `-p 15432:5432`) + export `DATABASE_URL*`; or `net stop winnat && net start winnat` (admin). |
 | `Docker Desktop crashed during eval` | Connection exhaustion under parallel arms. | Ensure compose Postgres runs `-c max_connections=300` (default here); don't shrink engine pools. |
 | `401 Unauthorized` on webhook POSTs | HMAC signature mismatch (`RAZORPAY_WEBHOOK_SECRET`). | Align the secret between sender and `.env`; dev default is used when unset. |
 | Duplicate webhook returns `duplicate:true`, no new episode | Dedup working as designed (provider event id unique). | Expected behavior — this is the storm-injection story. |

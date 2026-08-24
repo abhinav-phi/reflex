@@ -92,7 +92,7 @@ Every headline number is published as `value [ci_low, ci_high]` with arm, seed, 
 Reported honestly whether met or missed; gates are goals, not manipulable knobs:
 
 - G1 incremental value-weighted recovery vs B1 ≥ +15 pts (CI reported)
-- G2 cost per ₹100 recovered ≤ ₹3.5 (B1 reference ~₹6.9)
+- G2 cost per ₹100 recovered ≤ ₹3.5 (B1 reference ~₹6.9 was a PRD estimate; report measured B1 actual alongside)
 - G3 complaint rate < 0.5% (B1 reference ~1.9%)
 - G4 zero Shield violations in any run; 100% actions ledgered
 - G5 one-command reproduction within tolerance: recovery_rate per arm within ±0.005 absolute of committed results on same seed

@@ -170,8 +170,9 @@ def stop_customer(
 ) -> None:
     """COMPLAINT/OPTOUT path: instant global suppression + human handoff (F5).
 
-    The per-customer advisory lock serializes concurrent arms/workers inserting
-    the same suppression row — deadlock-proof under parallel eval.
+    A single global advisory lock (session-scoped, ms hold) serializes the
+    suppression upsert across concurrent arms/workers — deadlock-proof under
+    parallel eval (see lock-history note below).
     """
     from reflex.core.enums import SuppressionReason
 
@@ -180,10 +181,17 @@ def stop_customer(
         if "complaint" in reason_reason.lower()
         else SuppressionReason.OPTOUT
     )
-    # Single global lock: parallel arms acquire customer-suppression locks in
-    # event order, which can interleave into cycles with per-customer keys.
-    session.execute(text("SELECT pg_advisory_xact_lock(723302)"))
+    # Single global lock, SESSION-scoped and held only across the upsert.
+    # History: per-customer keys interleaved across parallel arms into wait
+    # cycles; the first fix used pg_advisory_XACT_lock(723302), which couples
+    # the critical section to the CALLER'S ENTIRE TRANSACTION — at eval scale
+    # (N=3000 x 4 parallel arms) that starved every arm behind one idle-in-
+    # transaction holder. A session-level lock released in `finally` keeps the
+    # single-key no-cycle property with millisecond hold times.
+    locked = False
     try:
+        session.execute(text("SELECT pg_advisory_lock(723302)"))
+        locked = True
         with session.begin_nested():
             session.execute(
                 text(
@@ -195,6 +203,9 @@ def stop_customer(
             )
     except Exception:
         pass  # already suppressed — idempotent intent
+    finally:
+        if locked:
+            session.execute(text("SELECT pg_advisory_unlock(723302)"))
     ledger = LedgerWriter(session)
     ledger.append(
         episode_id=episode_id,

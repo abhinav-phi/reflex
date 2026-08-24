@@ -26,6 +26,7 @@ from reflex.api.routes import (
     control,
     episodes,
     eval_api,
+    export,
     ledger_api,
     metrics,
     onboarding,
@@ -370,7 +371,10 @@ def replay_start(body: ReplayStartRequest, request: Request, user: dict = Depend
 
 
 # include routers
+# export first: its static paths (/episodes/export) must outrank the
+# parameterized /episodes/{episode_id} route registered later.
 for router in (
+    export.router,
     episodes.router,
     approvals.router,
     control.router,
