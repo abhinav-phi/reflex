@@ -21,7 +21,7 @@ literature-level numbers, not simulator internals.
 
 | Canonical code | Share |
 |---|---|
-| INSUFFICIENT_FUNDS | 34% |
+| INSUFFICIENT_FUNDS | 32% |
 | AUTH_DECLINED_SOFT | 14% |
 | ISSUER_DOWNTIME | 12% |
 | MANDATE_REVOKED | 9% |
@@ -30,9 +30,10 @@ literature-level numbers, not simulator internals.
 | MANDATE_LIMIT_BREACH | 5% |
 | CUSTOMER_INITIATED | 4% |
 | INVALID_VPA | 3% |
+| RISK_HELD | 2% |
 | ambiguous tail (rules-miss) | 6% |
 
-Source: relative ordering of Indian decline categories per gateway decline-code docs (insufficient funds dominates) `[ASSUMPTION on exact shares]`. Each code has 5–8 issuer-string paraphrases (messy bank strings).
+Source: relative ordering of Indian decline categories per gateway decline-code docs (insufficient funds dominates) `[ASSUMPTION on exact shares]`. Each code has 5–8 issuer-string paraphrases (messy bank strings). **Amendment 1** (`PROTOCOL.md §0`, tag `eval-preregistered-v1.1-risk-held-amendment`): RISK_HELD added at 2% (INSUFFICIENT_FUNDS 34→32) so all 11 canonical codes generate.
 
 Amounts (paise): {19,900 · 29,900 · 39,900} 60%, {49,900 · 59,900 · 69,900 · 99,900} 25%, {149,900 · 249,900} 10%, remainder ≤ ₹5,000 5%. Demo slice additionally contains one ₹48,00,000-paise B2B invoice (₹48,000). `[ASSUMPTION: chai-subscription price points]`
 

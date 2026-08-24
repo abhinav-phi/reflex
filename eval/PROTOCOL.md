@@ -12,6 +12,32 @@ correctly declines is mandatory in `docs/limitations.md`.
 
 ---
 
+## 0. Protocol amendments
+
+### Amendment 1 — RISK_HELD mixture rebalance (pre-official-run)
+
+**Status:** PRE-REGISTERED · Git tag `eval-preregistered-v1.1-risk-held-amendment` (alias
+`eval-protocol-amendment-risk-held`) points at commit `ff679ac`, recorded **before** any official
+multi-seed evaluation run produced results. No prior official-run artifacts exist to supersede.
+
+**Change:** synthetic failure mixture in `apps/eval/generator.py` (`CODE_MIXTURE`,
+`sim-v1`) gains `RISK_HELD` at **2%**, rebalancing `INSUFFICIENT_FUNDS` from **34% → 32%**
+(total stays 100%). All other shares, amounts, behavioral constants, and metric definitions are
+unchanged; `SIMULATOR_VERSION` remains `sim-v1`.
+
+**Rationale:** the frozen `sim-v1` mixture generated only 10 of the 11 canonical decline codes;
+`RISK_HELD` (issuer risk review) had no synthetic coverage, so agent behavior on that code was
+untestable and the losing-cohort analysis could not observe it. Issuer risk-holds are a real,
+non-trivial Indian decline category (`data/calibration_sources.md` §4: 0.10 same-rail retry
+resolution `[ASSUMPTION]`). Rebalancing INSUFFICIENT_FUNDS (the dominant share) by −2 pts keeps
+the ordering intact and the total exact.
+
+**Effect on gates:** none by construction — G1–G6 are computed from actuals under the identical
+definitions in §2/§5. The batch-identity rule (§1) now applies to the amended mixture: every arm
+on a given seed sees the same amended batch.
+
+---
+
 ## 1. Fixed design
 
 | Item | Value |
