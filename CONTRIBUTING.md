@@ -35,7 +35,7 @@ This project follows the **Contributor Covenant v1.4**:
 
 ```bash
 # 1. Clone & enter
-git clone https://github.com/<your-username>/reflex.git
+git clone https://github.com/abhinav-phi/reflex.git
 cd reflex
 
 # 2. Backend — Python 3.11+ virtualenv
@@ -56,6 +56,8 @@ cd apps/web && npm install && npm run dev   # http://localhost:5173
 # 6. Sanity check
 make test                         # full backend suite
 ```
+
+Full operator walkthrough: [`MANUAL_STEPS.md`](MANUAL_STEPS.md).
 
 ## Git Workflow & Branching Strategy
 

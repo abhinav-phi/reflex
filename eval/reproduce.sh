@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Reflex - one-command reproduction from a clean clone (see eval/PROTOCOL.md).
+# Reflex - one-command reproduction from a clean clone (eval/PROTOCOL.md §4).
 # Target: < 15 min on the 4-core reference VM.
-# Troubleshooting (Windows port-range bind failures, etc.): README.md post-mortem section.
+# Full runbook (incl. troubleshooting + Windows port-range workaround): MANUAL_STEPS.md §8.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

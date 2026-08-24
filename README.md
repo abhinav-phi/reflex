@@ -11,7 +11,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-127%20passing-brightgreen?style=flat-square)](#evaluation--pre-registered-metrics)
 
-**[Live Demo Video](#)** · **[Contributing Guide](CONTRIBUTING.md)**
+**[Live Demo Video](#)** · **[Contributing Guide](CONTRIBUTING.md)** · **[Operator Runbook](MANUAL_STEPS.md)**
 
 ---
 
@@ -93,7 +93,7 @@ Six subsystems, one deployable: **Pulse** ingests and diagnoses · **Brain** sco
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<your-username>/reflex.git
+git clone https://github.com/abhinav-phi/reflex.git
 cd reflex
 
 # 2. Configure environment variables
@@ -110,9 +110,9 @@ make demo
 
 > **Endpoints:**
 > - Full-Docker route: UI on **http://localhost:8080**, API on **http://localhost:8000** (`make demo` targets `:8899` by default — set `REFLEX_API=http://localhost:8000` when using the full Docker stack).
-> - Local dev route: Vite on **http://localhost:5173**, API on **:8899** (`8000` is OS-reserved on some Windows hosts).
+> - Local dev route: Vite on **http://localhost:5173**, API on **:8899** (`8000` is OS-reserved on some Windows hosts). Full walkthrough: [MANUAL_STEPS.md](MANUAL_STEPS.md).
 >
-> Postgres is published on host port **15432** by default (Windows reserves port ranges that cover 5432 — see [Troubleshooting](#what-broke--how-we-fixed-it-hackathon-post-mortem)).
+> Postgres is published on host port **15432** by default (Windows reserves port ranges that cover 5432 — see [Troubleshooting](#what-broke--how-we-fixed-it-hackathon-post-mortem) and [MANUAL_STEPS.md §10](MANUAL_STEPS.md#10-troubleshooting-engine)).
 
 Seeded logins (password `reflex-demo`): `admin@reflex.dev` · `approver@reflex.dev` · `operator@reflex.dev` · `viewer@reflex.dev`.
 
@@ -145,7 +145,7 @@ The protocol was committed and git-tagged **`eval-preregistered-v1` before any r
 Plus ablations A1–A4 (which AI component buys which points), bootstrap 95% CIs, and one honestly-reported losing cohort (<₹150 ephemeral failures where contact cost > EV — Reflex correctly declines).
 
 > ### ⚠️ Current Honest Limitation
-> The **official N=3000×3-seed run has not been executed yet.** On our build host it was blocked by a Windows reserved-port range covering 5432 (root-caused and documented; the compose file now publishes Postgres on host port 15432 to sidestep it). The harness itself is proven end-to-end at smoke scale with CIs and differentiated arms — but those smoke numbers are **explicitly not citable as results**. Every metric in this repo is labeled `[SIMULATED]` until the official run commits JSON to `eval/results/`. That's the brand: it never lies about what it did.
+> The **official N=3000×3-seed run has not been executed yet.** On our build host it was blocked by a Windows reserved-port range covering 5432 (root-caused and documented; the compose file now publishes Postgres on host port 15432 to sidestep it — workaround details in [MANUAL_STEPS.md §8](MANUAL_STEPS.md#8-evaluation--reproducibility-runbook)). The harness itself is proven end-to-end at smoke scale with CIs and differentiated arms — but those smoke numbers are **explicitly not citable as results**. Every metric in this repo is labeled `[SIMULATED]` until the official run commits JSON to `eval/results/`. That's the brand: it never lies about what it did.
 
 ## What Broke & How We Fixed It (Hackathon Post-Mortem)
 
