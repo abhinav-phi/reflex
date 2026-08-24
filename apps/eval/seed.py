@@ -5,11 +5,9 @@ from __future__ import annotations
 import json
 import sys
 
+from reflex.api.security import hash_password
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from reflex.api.security import hash_password
-from reflex.core.settings import get_settings
 
 
 def ensure_reference_data(session: Session, verbose: bool = False) -> None:
@@ -62,7 +60,6 @@ def ensure_reference_data(session: Session, verbose: bool = False) -> None:
         text("SELECT id FROM runtime.policy_versions WHERE id = 'v1'")
     ).first()
     if row is None:
-        from reflex.brain.ev import POLICY_V1
         from reflex.brain.policy_store import FROZEN_V1
 
         params = dict(FROZEN_V1)

@@ -13,29 +13,26 @@ from __future__ import annotations
 
 import heapq
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 from reflex.api.ingest_service import ingest_event
 from reflex.core.enums import (
     ActionStatus,
     Arm,
-    Channel,
     EventSource,
     Intervention,
     Mode,
 )
-from reflex.ledger.chain import LedgerWriter
-from reflex.shield.guardrails import MerchantGuardrails
-from reflex.workers import baselines, dispatcher, outcomes as outcome_ops
+from reflex.ledger.chain import LedgerWriter, fast_ledger
+from reflex.workers import baselines, dispatcher
+from reflex.workers import outcomes as outcome_ops
 from reflex.workers.context import EpisodeContext
-from reflex.workers.diagnosis import DiagnosisResult, diagnose_episode
-from reflex.workers.planner import PlanOutcome, plan_episode
+from reflex.workers.diagnosis import diagnose_episode
+from reflex.workers.planner import plan_episode
 from reflex.workers.simulator import SimulatorBridge, organic_events_for_customer
-from reflex.ledger.chain import fast_ledger
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.pipeline")
 
@@ -149,7 +146,7 @@ def _run_arm_inner(
     cfg: PipelineConfig,
     opened_at: datetime | None,
 ) -> ArmResult:
-    opened = opened_at or datetime(2026, 8, 28, 9, 0, tzinfo=timezone.utc)
+    opened = opened_at or datetime(2026, 8, 28, 9, 0, tzinfo=UTC)
     run_ns = f"{str(batch_id)[:8]}:{arm.value}" + (f":{ablation}" if ablation else "")
     # each episode lives 72h from ITS OWN open; the harness must therefore run
     # until (last opening + 72h) so every episode can reach a terminal state
@@ -165,7 +162,6 @@ def _run_arm_inner(
             heapq.heappush(pq, TimedEvent(t, next(seq_counter), kind, payload))
 
     sim_bridge = SimulatorBridge(session, seed=batch.seed_int, batch_id=str(batch_id))
-    guardrails_cfg = MerchantGuardrails.from_merchant_cfg({})
     noop_llm = _NoopLlm()
 
     truth_by_idx = {c.idx: c for c in batch.customers}
@@ -183,7 +179,7 @@ def _run_arm_inner(
         open_t = opened + timedelta(seconds=ev_spec.t_offset_secs)
         push(open_t, "open", {"k": k})
         cust = truth_by_idx[ev_spec.customer_idx]
-        for t_off_abs, _kind, payload in organic_events_for_customer(
+        for t_off_abs, _kind, _payload in organic_events_for_customer(
             seed=batch.seed_int,
             customer_idx=cust.idx,
             episode_idx=k,
@@ -216,7 +212,7 @@ def _run_arm_inner(
             contacts_today=contacts.get(k, 0),
             prior_recovered=False,
             day_of_month=opened.day,
-            hour_ist=opened.astimezone(timezone.utc).hour,
+            hour_ist=opened.astimezone(UTC).hour,
             merchant_cfg={},
             budget_spent_today_paise=0,
             opened_at=opened + timedelta(seconds=ev.t_offset_secs),
@@ -250,7 +246,7 @@ def _run_arm_inner(
                 source=EventSource.REPLAY,
                 normalized=normalized,
                 arm=arm,
-                batch_customer_resolver=lambda _n: customer_ids[ev.customer_idx],
+                batch_customer_resolver=lambda _n, ev=ev: customer_ids[ev.customer_idx],
                 now_sim=now,
             )
             if not res.accepted or res.episode_id is None:
@@ -437,7 +433,7 @@ def _plan_reflex(
     waits[k] = waits.get(k, 0)
     dx = diagnose_episode(
         session,
-        noop_llm := _NoopLlm(),
+        _NoopLlm(),
         _NullRedis(),
         episode_id=ctx.episode_id,
         code_raw=ctx.code_raw,

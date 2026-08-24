@@ -6,13 +6,13 @@ CI-blocking regressions for the deterministic defense layer.
 """
 
 import json
+from datetime import UTC
 from pathlib import Path
 
 import pytest
-
-from reflex.workers.replies import classify_reply
-from reflex.workers.llm_client import LlmClient
 from reflex.workers.diagnosis import diagnose_episode
+from reflex.workers.llm_client import LlmClient
+from reflex.workers.replies import classify_reply
 
 CORPUS = Path(__file__).resolve().parents[2] / "data" / "generators" / "reply_corpus.jsonl"
 INJECTIONS = Path(__file__).resolve().parents[2] / "data" / "generators" / "injection_attempts.jsonl"
@@ -97,16 +97,18 @@ class _NullRedis:
 
 def test_diagnosis_injection_corpus_safe_offline():
     """Injection decline strings must fall to UNKNOWN_AMBIGUOUS (fail-closed)."""
-    from data.generators.corpus_strings import INJECTION_STRINGS
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from reflex.core.enums import CanonicalCode
+
+    from data.generators.corpus_strings import INJECTION_STRINGS
 
     llm = LlmClient()
     for s in INJECTION_STRINGS:
         d = diagnose_episode(
             None, llm, _NullRedis(), episode_id="e-test",
             code_raw=s, rail="upi", amount_paise=29900,
-            occurred_at=datetime(2026, 8, 28, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 8, 28, tzinfo=UTC),
         )
         assert d.canonical_code in (
             CanonicalCode.UNKNOWN_AMBIGUOUS,
@@ -118,19 +120,20 @@ def test_diagnosis_injection_corpus_safe_offline():
                     reason="requires LLM_API_KEY")
 def test_diagnosis_holdout_accuracy_with_live_llm():
     """AI-1 gate: ≥85% on the labeled corpus (500-case holdout per PRD)."""
-    from datetime import datetime, timezone
+    from datetime import datetime
+
+    from reflex.core.enums import CanonicalCode
 
     from data.generators.corpus_strings import all_labeled
-    from reflex.core.enums import CanonicalCode
 
     llm = LlmClient()
     cases = all_labeled()[:500]
-    correct = ambiguous_ok = 0
+    correct = 0
     for raw, truth in cases:
         d = diagnose_episode(
             None, llm, _NullRedis(), episode_id="holdout",
             code_raw=raw, rail="upi", amount_paise=29900,
-            occurred_at=datetime(2026, 8, 28, tzinfo=timezone.utc),
+            occurred_at=datetime(2026, 8, 28, tzinfo=UTC),
         )
         if d.canonical_code == truth or (
             truth is not CanonicalCode.UNKNOWN_AMBIGUOUS

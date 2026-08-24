@@ -11,12 +11,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
-from reflex.core.enums import ActionStatus, EpisodeStatus, OutcomeKind
+from reflex.core.enums import ActionStatus
 from reflex.ledger.chain import LedgerWriter
 from reflex.workers.dispatcher import transition_action
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.outcomes")
 

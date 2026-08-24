@@ -2,20 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import text
-
 from reflex.api.security import require_role
 from reflex.core.enums import Role
-from reflex.core.schemas import EpisodeDto
+from sqlalchemy import text
 
 router = APIRouter()
 
 
 def _rate(request: Request, bucket: str, user: dict) -> None:
-    limiter: RateLimiter = request.app.state.rate  # type: ignore[name-defined]
+    limiter = request.app.state.rate
     limiter.check(bucket, user["user_id"])
 
 
@@ -216,7 +215,7 @@ def escalate(
     user: dict[str, Any] = Depends(require_role(Role.OPERATOR)),
 ) -> dict:
     request.app.state.rate.check("control_mode", user["user_id"])
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from reflex.api.db import agent_sessionmaker
     from reflex.workers.outcomes import escalate_human
@@ -227,12 +226,12 @@ def escalate(
             s,
             episode_id=episode_id,
             note=f"manual escalation by {user['user_id']}",
-            at=datetime.now(timezone.utc),
+            at=datetime.now(UTC),
         )
         s.commit()
         return {"ok": True}
     except Exception as exc:
         s.rollback()
-        raise HTTPException(status_code=409, detail=str(exc)[:200])
+        raise HTTPException(status_code=409, detail=str(exc)[:200]) from exc
     finally:
         s.close()

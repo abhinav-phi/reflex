@@ -9,14 +9,19 @@ dispatched — callers append BEFORE dispatch and treat failure as blocking.
 
 from __future__ import annotations
 
+import contextvars
 import hashlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from reflex.core.models import ActionLedgerRow
 import json
 import logging
-from collections.abc import Iterable, Sequence
-from datetime import datetime, timezone
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 LEDGER_LOCK_KEY = 723301  # pg advisory lock id for global append serialization
@@ -25,7 +30,6 @@ GENESIS_PREV = "0" * 64
 # Eval pipelines enable this per-thread: each arm-run is the single appender
 # inside its own transaction, so the advisory lock + head re-read are skipped.
 # Hash semantics identical either way. ContextVar ⇒ safe under parallel arms.
-import contextvars
 
 _FAST_MODE: contextvars.ContextVar[bool] = contextvars.ContextVar("reflex_fast_ledger", default=False)
 
@@ -33,7 +37,7 @@ _FAST_MODE: contextvars.ContextVar[bool] = contextvars.ContextVar("reflex_fast_l
 class fast_ledger:
     """Context manager enabling single-writer fast appends (Proof harness only)."""
 
-    def __enter__(self) -> "fast_ledger":
+    def __enter__(self) -> fast_ledger:
         self._token = _FAST_MODE.set(True)
         return self
 
@@ -96,7 +100,7 @@ class LedgerWriter:
         last_seq, prev_hash = self.head()
         seq = last_seq + 1
         ev = dict(event)
-        ev.setdefault("ts", (at or datetime.now(timezone.utc)).isoformat())
+        ev.setdefault("ts", (at or datetime.now(UTC)).isoformat())
         digest = compute_hash(seq, prev_hash, ev)
         self.s.execute(
             text(
@@ -136,7 +140,7 @@ class InMemoryLedger:
     ) -> tuple[int, str]:
         self._seq += 1
         ev = dict(event)
-        ev.setdefault("ts", (at or datetime.now(timezone.utc)).isoformat())
+        ev.setdefault("ts", (at or datetime.now(UTC)).isoformat())
         digest = compute_hash(self._seq, self._prev, ev)
         self.rows.append(
             {

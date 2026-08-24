@@ -14,11 +14,10 @@ from typing import Any
 import jwt
 import structlog
 from fastapi import Depends, HTTPException, Request
+from reflex.core.enums import ROLE_ORDER, Role
+from reflex.core.settings import get_settings
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from reflex.core.enums import Role, ROLE_ORDER
-from reflex.core.settings import get_settings
 
 log = structlog.get_logger("reflex.auth")
 

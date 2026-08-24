@@ -6,8 +6,6 @@ import subprocess
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import text
-
 from reflex.api.security import require_role
 from reflex.core.enums import Role
 from reflex.core.schemas import EvalRunRequest

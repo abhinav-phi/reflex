@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from functools import lru_cache
-from typing import Iterator
-
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
 
 from reflex.core.settings import get_settings
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @lru_cache

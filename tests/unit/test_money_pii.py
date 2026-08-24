@@ -1,7 +1,6 @@
 """PII scrubber + money formatting (Rules §1.8, §7.2)."""
 
 import pytest
-
 from reflex.core.money import format_inr
 from reflex.core.pii import assert_no_pii, scrub, scrub_payload
 

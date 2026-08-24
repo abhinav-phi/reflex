@@ -13,12 +13,12 @@ from __future__ import annotations
 import hashlib
 import zlib
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
+from reflex.core.enums import CanonicalCode, Rail
 
 from data.generators.corpus_strings import DECLINE_STRINGS, RULES_MISS_STRINGS
-from reflex.core.enums import CanonicalCode, LtvBand, Rail
 
 SIMULATOR_VERSION = "sim-v1"
 
@@ -124,10 +124,10 @@ def generate_batch(*, seed: str | int, n: int, demo: bool = False) -> GeneratedB
 
     # ---- customers ---------------------------------------------------------
     n_customers = max(n, 300)  # reuse pool; some customers may fail more than once
-    codes, weights = zip(*CODE_MIXTURE)
+    codes, weights = zip(*CODE_MIXTURE, strict=True)
     weights_arr = np.array(weights) / sum(weights)
 
-    intents, intent_w = zip(*INTENT_PRIOR)
+    intents, intent_w = zip(*INTENT_PRIOR, strict=True)
     intent_arr = np.array(intent_w) / sum(intent_w)
 
     for i in range(n_customers):
@@ -301,7 +301,7 @@ def _handle(rng: np.random.Generator) -> str:
 
 
 def batch_open_time(now: datetime | None = None) -> datetime:
-    return (now or datetime.now(timezone.utc)).replace(microsecond=0)
+    return (now or datetime.now(UTC)).replace(microsecond=0)
 
 
 def horizon_end(opened: datetime, hours: int = 72) -> datetime:

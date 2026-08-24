@@ -8,13 +8,13 @@ Proof's in-process eval uses a deterministic VirtualClock. Both implement
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from reflex.core.enums import Mode
 
 IST = ZoneInfo("Asia/Kolkata")
-EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 CLOCK_KEY = "reflex:clock"
 
@@ -48,7 +48,7 @@ class RealClock:
     """Wall-clock at ×1 (used when no replay is active)."""
 
     def now_sim(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def speed(self) -> float:
         return 1.0
@@ -90,7 +90,7 @@ class SimClock:
     def now_sim(self) -> datetime:
         st = self.state()
         if st is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         delta = timedelta(seconds=(time.time() - st["anchor_real"]) * st["speed"])
         return EPOCH + timedelta(seconds=st["anchor_sim"]) + delta
 

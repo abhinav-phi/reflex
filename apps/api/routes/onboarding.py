@@ -7,11 +7,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import text
-
 from reflex.api.security import require_role
 from reflex.core.enums import Mode, Role
 from reflex.core.schemas import GuardrailSettingsUpdate
+from sqlalchemy import text
 
 router = APIRouter()
 
@@ -51,9 +50,9 @@ def verify_keys(body: dict[str, str], user: dict[str, Any] = Depends(require_rol
         order = client.create_order(amount_paise=100, receipt="reflex-onboarding-check")
         client.cancel_order(str(order.provider_ref))
     except TestModeViolation as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ConnectorError as exc:
-        raise HTTPException(status_code=502, detail=f"razorpay check failed: {exc}")
+        raise HTTPException(status_code=502, detail=f"razorpay check failed: {exc}") from exc
     return {"ok": True, "note": "[TEST MODE] ₹1 test order created and cancelled"}
 
 

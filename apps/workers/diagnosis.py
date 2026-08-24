@@ -9,15 +9,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 from reflex.core.enums import CanonicalCode, DxMethod
 from reflex.core.pii import scrub_payload
 from reflex.prompts import registry as prompts
 from reflex.prompts.validators import parse_diagnosis
 from reflex.workers.llm_client import LlmClient
 from reflex.workers.rules_dx import diagnose_rules
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.diagnosis")
 

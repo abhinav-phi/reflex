@@ -16,13 +16,12 @@ import argparse
 import signal
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import text
-
 from reflex.core.clock import SimClock, effective_mode
 from reflex.core.enums import Arm, CanonicalCode, DxMethod, Mode
+from sqlalchemy import text
 
 log = structlog.get_logger("reflex.workers")
 
@@ -103,8 +102,6 @@ def _sim_bridge(agent_session, eval_session):  # type: ignore[no-untyped-def]
 
 def run_diagnosis(stop: threading.Event) -> None:
     from reflex.api.db import get_redis
-    from reflex.ledger.chain import LedgerWriter
-    from reflex.workers.diagnosis import diagnose_episode
     from reflex.workers.llm_client import LlmClient
 
     r = get_redis()
@@ -399,11 +396,11 @@ def _apply_sim_events(r) -> None:  # type: ignore[no-untyped-def]
         clock_state = SimClock(r).state()
         if clock_state is None:
             return
-        anchor_sim = datetime.fromtimestamp(clock_state["anchor_sim"], tz=timezone.utc)
-        anchor_real = datetime.fromtimestamp(clock_state["anchor_real"], tz=timezone.utc)
-        elapsed_real = (datetime.now(timezone.utc) - anchor_real).total_seconds()
+        anchor_sim = datetime.fromtimestamp(clock_state["anchor_sim"], tz=UTC)
+        anchor_real = datetime.fromtimestamp(clock_state["anchor_real"], tz=UTC)
+        elapsed_real = (datetime.now(UTC) - anchor_real).total_seconds()
         sim_now = anchor_sim + timedelta(seconds=elapsed_real * clock_state["speed"])
-        opened = batch[2] if batch[2].tzinfo else batch[2].replace(tzinfo=timezone.utc)
+        opened = batch[2] if batch[2].tzinfo else batch[2].replace(tzinfo=UTC)
         elapsed_sim = (sim_now - opened).total_seconds()
         if elapsed_sim < 0:
             return
@@ -433,7 +430,7 @@ def _apply_sim_events(r) -> None:  # type: ignore[no-untyped-def]
                         {"a": action_id},
                     ).scalar()
                     if dispatched is not None:
-                        d = dispatched if dispatched.tzinfo else dispatched.replace(tzinfo=timezone.utc)
+                        d = dispatched if dispatched.tzinfo else dispatched.replace(tzinfo=UTC)
                         latency = max(1, int((sim_now - d).total_seconds()))
                 if apply_recovery(
                     s,

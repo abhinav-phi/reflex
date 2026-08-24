@@ -89,7 +89,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+ignore = [
+    "E501",
+    "B008", # function-call-in-default-argument: FastAPI Depends()/Query() idiom
+]
 
 [tool.mypy]
 python_version = "3.11"

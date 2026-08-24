@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
+from reflex.brain.ev import POLICY_V1
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from reflex.brain.ev import POLICY_V1
 
 FROZEN_V1: dict[str, Any] = {
     "id": "v1",

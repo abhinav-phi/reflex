@@ -16,7 +16,6 @@ from typing import Any
 
 import httpx
 import structlog
-
 from reflex.core.settings import Settings, get_settings
 
 log = structlog.get_logger("reflex.llm")

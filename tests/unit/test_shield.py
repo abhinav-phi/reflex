@@ -1,9 +1,8 @@
 """Shield adversarial suite (Rules §11.3): table-driven, at-limit boundaries."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-
 from reflex.core.enums import Channel, Intervention, Mode
 from reflex.shield.guardrails import (
     ActionProposal,
@@ -18,7 +17,7 @@ def now(h: int, m: int = 0, s: int = 0) -> datetime:
     # 2026-08-28 is a Friday; hour in IST via +05:30 offset — use plain IST clock
     from datetime import timedelta
 
-    utc = datetime(2026, 8, 28, h, m, s, tzinfo=timezone.utc)
+    utc = datetime(2026, 8, 28, h, m, s, tzinfo=UTC)
     return utc - timedelta(hours=5, minutes=30)  # convert IST wall-clock to UTC
 
 

@@ -8,11 +8,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from reflex.core.clock import ist_date_key
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from reflex.core.clock import ist_date_key
-from reflex.core.enums import Channel, SuppressionReason
 
 
 @dataclass(frozen=True)

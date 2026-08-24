@@ -91,7 +91,6 @@ ROUTE_CASES = [
 def test_rbac_matrix(client, auth_h):  # type: ignore[no-untyped-def]
     for method, route, min_role in ROUTE_CASES:
         order = ["none", "viewer", "operator", "approver", "admin"]
-        min_idx = order.index(min_role)
         allowed = {"viewer", "operator", "approver", "admin"} if min_role == "viewer" else \
                   {"operator", "approver", "admin"} if min_role == "operator" else \
                   {"approver", "admin"} if min_role == "approver" else {"admin"}

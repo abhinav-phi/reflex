@@ -14,31 +14,32 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 from reflex.connectors.channels import GATEWAYS
 from reflex.connectors.errors import ConnectorError, RazorpayTimeout
 from reflex.connectors.razorpay import RazorpayTestModeClient
 from reflex.core.enums import (
     ActionStatus,
     Channel,
-    EpisodeStatus,
     EventSource,
     Intervention,
     Mode,
 )
-from reflex.core.state_machine import can_transition_action
 from reflex.ledger.chain import LedgerWriter
 from reflex.shield.guardrails import (
     ActionProposal,
-    EpisodeState as ShieldEpisodeState,
     MerchantGuardrails,
     ShieldInput,
+)
+from reflex.shield.guardrails import (
+    EpisodeState as ShieldEpisodeState,
+)
+from reflex.shield.guardrails import (
     evaluate as shield_evaluate,
 )
 from reflex.workers.context import load_context
 from reflex.workers.messages import MessageSlots, generate_message
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.dispatcher")
 

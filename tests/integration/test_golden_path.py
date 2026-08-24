@@ -1,13 +1,12 @@
 """Integration: golden path through the REAL pipeline against Postgres (FR-015)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import text
-
 from reflex.core.enums import Arm
-from reflex.eval.runner import prepare_batch
 from reflex.eval.pipeline import run_arm
+from reflex.eval.runner import prepare_batch
+from sqlalchemy import text
 
 
 @pytest.mark.integration
@@ -23,7 +22,7 @@ def test_golden_path_terminal_states_and_attribution(clean_db):  # type: ignore[
         result = run_arm(
             s, batch_id=batch_id, batch=batch, merchant_id=mid,
             customer_ids=cust_ids, arm=Arm.REFLEX,
-            opened_at=datetime.now(timezone.utc).replace(microsecond=0),
+            opened_at=datetime.now(UTC).replace(microsecond=0),
         )
         # every episode reaches a terminal state (FR-015 acceptance)
         rows = s.execute(text("""
@@ -71,7 +70,7 @@ def test_webhook_storm_dedup(clean_db):  # type: ignore[no-untyped-def]
     s = eval_sessionmaker()()
     try:
         ensure_reference_data(s)
-        base = datetime.now(timezone.utc).replace(microsecond=0)
+        base = datetime.now(UTC).replace(microsecond=0)
 
         def norm(i: int) -> dict:
             return {

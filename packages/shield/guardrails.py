@@ -54,7 +54,7 @@ class MerchantGuardrails:
     approval_threshold_paise: int = 5_000_000
 
     @staticmethod
-    def from_merchant_cfg(cfg: dict[str, Any]) -> "MerchantGuardrails":
+    def from_merchant_cfg(cfg: dict[str, Any]) -> MerchantGuardrails:
         """Merchant config may tighten but never exceed hard bounds."""
         return MerchantGuardrails(
             caps_per_episode=_clamp_int(cfg.get("caps_per_episode", 4), 1, HARD_MAX_ACTIONS_PER_EPISODE, 4),

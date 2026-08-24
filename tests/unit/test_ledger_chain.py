@@ -1,12 +1,10 @@
 """Hash-chain semantics: append, verify, tamper detection (FR-010)."""
 
-import pytest
 
 from reflex.ledger.chain import (
     GENESIS_PREV,
     InMemoryLedger,
     compute_hash,
-    canonical_event,
     verify_rows,
 )
 

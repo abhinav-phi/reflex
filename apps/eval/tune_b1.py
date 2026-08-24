@@ -9,14 +9,11 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
-from sqlalchemy import text
 
 from reflex.api.db import eval_sessionmaker
 from reflex.core.enums import Arm
-from reflex.eval.generator import generate_batch
 from reflex.eval.pipeline import run_arm
 from reflex.eval.seed import ensure_reference_data
 
@@ -44,7 +41,7 @@ def main() -> int:
         from reflex.eval.runner import prepare_batch
         from reflex.workers import baselines as bl
 
-        opened = datetime.now(timezone.utc).replace(microsecond=0)
+        opened = datetime.now(UTC).replace(microsecond=0)
 
         def _run_config(r_off, m_off):
             sess = eval_sessionmaker()()

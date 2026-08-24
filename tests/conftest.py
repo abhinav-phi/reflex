@@ -25,7 +25,7 @@ TRUNCATE runtime.episodes, runtime.payment_events, runtime.actions,
 
 @pytest.fixture()
 def db_admin():  # type: ignore[no-untyped-def]
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import create_engine
 
     eng = create_engine(os.environ["DATABASE_URL_ADMIN"], future=True)
     conn = eng.connect()
@@ -48,7 +48,6 @@ def clean_db(db_admin):  # type: ignore[no-untyped-def]
 @pytest.fixture()
 def client(clean_db):  # type: ignore[no-untyped-def]
     from fastapi.testclient import TestClient
-
     from reflex.api.main import app
 
     with TestClient(app) as c:

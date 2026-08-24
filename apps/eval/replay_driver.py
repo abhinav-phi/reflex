@@ -11,15 +11,14 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import structlog
-from sqlalchemy import text
-
 from reflex.api.ingest_service import ingest_event
 from reflex.core.clock import SimClock
 from reflex.core.enums import Arm, EventSource
-from reflex.eval.generator import DEMO_N, DEMO_SEED, generate_batch, seed_to_int
+from reflex.eval.generator import generate_batch, seed_to_int
+from sqlalchemy import text
 
 log = structlog.get_logger("reflex.replay_driver")
 
@@ -36,7 +35,7 @@ def _prepare_batch_rows(eval_session, agent_session, *, seed: str | int, n: int,
 
 def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo: bool, redis_client) -> list[str]:  # type: ignore[no-untyped-def]
     """Starts a replay thread; demo=true also starts the b1 twin on same seed."""
-    from reflex.api.db import eval_sessionmaker, agent_sessionmaker
+    from reflex.api.db import agent_sessionmaker, eval_sessionmaker
 
     eval_s = eval_sessionmaker()()
     agent_s = agent_sessionmaker()()
@@ -44,7 +43,7 @@ def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo:
         batch_id, (batch, customer_ids, _merchant) = _prepare_batch_rows(
             eval_s, agent_s, seed=seed, n=n, arm=arm
         )
-        sim_start = datetime.now(timezone.utc).replace(microsecond=0)
+        sim_start = datetime.now(UTC).replace(microsecond=0)
         clock = SimClock(redis_client)
         clock.configure(sim_start=sim_start, speed=speed)
 
@@ -88,7 +87,6 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
     total = len(ordered_events)
     log.info("replay_started", episodes=total, speed=speed, arms=[b["arm"].value for b in batches])
     for idx, ev in enumerate(ordered_events):
-        target_sim = sim_start + timedelta(seconds=ev.t_offset_secs / max(speed, 0.01) * 1.0)
         # sim seconds map to real seconds via speed factor
         wait = (real_start + ev.t_offset_secs / max(speed, 0.01)) - time.time()
         if wait > 0:
@@ -101,7 +99,7 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
                 "rail": ev.rail,
                 "code_raw": ev.code_raw,
                 "amount_paise": ev.amount_paise,
-                "occurred_at": datetime.now(timezone.utc).replace(microsecond=0),
+                "occurred_at": datetime.now(UTC).replace(microsecond=0),
                 "raw_payload": {"simulated": True, "[SIMULATED]": True},
                 "customer_ref": f"idx:{ev.customer_idx}",
             }
@@ -124,7 +122,7 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
                         pass
             s.commit()
             try:
-                done = int((redis_client.incr("reflex:replay:fed")) )
+                done = int(redis_client.incr("reflex:replay:fed") )
                 if done >= total * len(batches):
                     redis_client.set("reflex:replay:done", "1")
                     redis_client.delete("reflex:replay:running")
@@ -178,11 +176,9 @@ def run_webhook_storm(redis_client) -> dict[str, int]:  # type: ignore[no-untype
 
 def inject_complaint(redis_client) -> dict[str, str]:  # type: ignore[no-untyped-def]
     """Injection 3: next simulated reply of an active episode is a complaint."""
-    from reflex.api.db import agent_sessionmaker
-    from datetime import datetime as dt, timezone as tz
+    from datetime import datetime as dt
 
-    from reflex.core.enums import SuppressionReason
-    from reflex.ledger.chain import LedgerWriter
+    from reflex.api.db import agent_sessionmaker
     from reflex.workers.outcomes import stop_customer
 
     s = agent_sessionmaker()()
@@ -206,7 +202,7 @@ def inject_complaint(redis_client) -> dict[str, str]:  # type: ignore[no-untyped
             customer_id=row[1],
             reason_reason="complaint",
             suppression_source="injection:complaint [SIMULATED]",
-            at=dt.now(tz.utc),
+            at=dt.now(UTC),
         )
         s.commit()
         return {"ok": True, "episode_id": row[0], "note": "suppression + STOPPED_CUSTOMER applied via real path"}

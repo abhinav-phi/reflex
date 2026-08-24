@@ -12,13 +12,9 @@ from datetime import datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 from reflex.brain.candidates import CandidateSpec, enumerate_candidates
 from reflex.brain.ev import (
     EpisodeFeatures,
-    POLICY_V1,
     channel_cost,
     compute_ev,
     propensity,
@@ -28,7 +24,6 @@ from reflex.core.enums import (
     ActionStatus,
     CanonicalCode,
     Channel,
-    EpisodeStatus,
     Intervention,
     Mode,
 )
@@ -36,12 +31,18 @@ from reflex.core.state_machine import can_transition_action
 from reflex.ledger.chain import LedgerWriter
 from reflex.shield.guardrails import (
     ActionProposal,
-    EpisodeState as ShieldEpisodeState,
     MerchantGuardrails,
     ShieldInput,
+)
+from reflex.shield.guardrails import (
+    EpisodeState as ShieldEpisodeState,
+)
+from reflex.shield.guardrails import (
     evaluate as shield_evaluate,
 )
 from reflex.workers.context import EpisodeContext
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.planner")
 

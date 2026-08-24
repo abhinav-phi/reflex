@@ -5,18 +5,15 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
-
 from reflex.api.db import agent_session, get_redis
 from reflex.api.ingest_service import (
-    InvalidSignature,
     ingest_event,
     normalize_event,
     verify_webhook_signature,
@@ -38,12 +35,9 @@ from reflex.api.security import (
     principal_of,
     require_role,
 )
-from reflex.core.clock import SimClock, effective_mode
 from reflex.core.enums import Arm, EventSource, Role
 from reflex.core.schemas import (
-    ApprovalDecisionRequest,
     LoginRequest,
-    ModeChangeRequest,
     ReplayStartRequest,
     WebhookAck,
 )
@@ -62,7 +56,7 @@ log = structlog.get_logger("reflex.api")
 async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.redis = get_redis()
     app.state.rate = RateLimiter(app.state.redis)
-    app.state.started_at = datetime.now(timezone.utc)
+    app.state.started_at = datetime.now(UTC)
     yield
 
 
@@ -242,8 +236,8 @@ async def webhook_razorpay(request: Request) -> WebhookAck:
 
     try:
         payload = json.loads(raw)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="malformed payload")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="malformed payload") from exc
 
     normalized = normalize_event(payload)
     if normalized is None:
@@ -279,7 +273,8 @@ def _security_event(request: Request, kind: str) -> None:
             {"k": kind, "d": json.dumps({"path": request.url.path, "ip": request.client.host if request.client else None})},
         )
     finally:
-        s.commit(); s.close()
+        s.commit()
+        s.close()
 
 
 def _bump(redis: object, key: str) -> None:

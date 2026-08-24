@@ -6,7 +6,7 @@ Every LLM call records prompt_hash (sha256 of template text) in runtime.llm_call
 from __future__ import annotations
 
 import hashlib
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ PROMPTS: dict[str, str] = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def load(name: str) -> str:
     fname = PROMPTS.get(name)
     if fname is None:

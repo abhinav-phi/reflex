@@ -17,11 +17,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import structlog
+from reflex.core.enums import Channel, Intervention, Mode
+from reflex.ledger.chain import LedgerWriter
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from reflex.core.enums import Channel, EpisodeStatus, Intervention, Mode
-from reflex.ledger.chain import LedgerWriter
 
 log = structlog.get_logger("reflex.baselines")
 

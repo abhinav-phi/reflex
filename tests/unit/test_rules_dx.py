@@ -1,12 +1,13 @@
 """Rules-first diagnosis coverage ≥70% (FR-004) + ambiguous tail + injection safety."""
 
+from reflex.core.enums import CanonicalCode
+from reflex.workers.rules_dx import diagnose_rules
+
 from data.generators.corpus_strings import (
     DECLINE_STRINGS,
     INJECTION_STRINGS,
     RULES_MISS_STRINGS,
 )
-from reflex.core.enums import CanonicalCode
-from reflex.workers.rules_dx import diagnose_rules
 
 
 def test_rules_cover_at_least_70_percent_of_classifiable():

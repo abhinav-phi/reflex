@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
 
 # Transport-latency model (seconds): channel-typical delivery ack delays.
 TRANSPORT_LATENCY_SECS: dict[str, tuple[float, float]] = {

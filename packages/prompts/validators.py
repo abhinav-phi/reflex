@@ -18,7 +18,6 @@ import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
-
 from reflex.core.enums import CanonicalCode
 
 # Validator regex per TechSpec §7 AI-3: any digit, http, ₹, or UPI- in an LLM span.

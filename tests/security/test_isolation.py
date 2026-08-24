@@ -3,6 +3,7 @@
 import ast
 from pathlib import Path
 
+import psycopg
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
@@ -86,7 +87,7 @@ def _agent_conn():  # type: ignore[no-untyped-def]
 def test_agent_role_cannot_read_replay(clean_db):  # type: ignore[no-untyped-def]
     conn = _agent_conn()
     try:
-        with pytest.raises(Exception):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute("SELECT count(*) FROM replay.sim_customers").fetchone()
     finally:
         conn.close()
@@ -110,7 +111,7 @@ def test_agent_role_cannot_update_ledger(clean_db):  # type: ignore[no-untyped-d
             return  # no data yet
     conn = _agent_conn()
     try:
-        with pytest.raises(Exception):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute(
                 "UPDATE runtime.action_ledger SET hash='x' WHERE episode_id=%s", (ep,)
             )
@@ -127,14 +128,13 @@ SELECT m.id, 'C-TEST-SEC' FROM runtime.merchants m LIMIT 1
 @pytest.mark.integration
 def test_no_pii_in_llm_call_logs_after_run(clean_db):  # type: ignore[no-untyped-def]
     """Schema §12: llm_calls inputs are redacted at write (scanner gate)."""
-    from sqlalchemy import text as sql_text
-
     from reflex.api.db import eval_sessionmaker
-    from reflex.eval.seed import ensure_reference_data
-    from reflex.eval.runner import prepare_batch
-    from reflex.eval.pipeline import run_arm
     from reflex.core.enums import Arm
     from reflex.core.pii import assert_no_pii
+    from reflex.eval.pipeline import run_arm
+    from reflex.eval.runner import prepare_batch
+    from reflex.eval.seed import ensure_reference_data
+    from sqlalchemy import text as sql_text
 
     s = eval_sessionmaker()()
     try:

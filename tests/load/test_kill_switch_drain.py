@@ -9,19 +9,18 @@ Also asserts the dispatch-side flag check: a worker observing `reflex:halted`
 cancels before send (dispatcher path), which is the ≤1s per-action guarantee.
 """
 
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import text
-
 from reflex.api.db import eval_sessionmaker
 from reflex.eval.seed import ensure_reference_data
+from sqlalchemy import text
 
 
 def _seed_episodes_with_scheduled_actions(s, n: int) -> None:  # type: ignore[no-untyped-def]
     """Deterministic fixture: n episodes with one scheduled action each."""
-    base = datetime.now(timezone.utc).replace(microsecond=0)
+    base = datetime.now(UTC).replace(microsecond=0)
     ensure_reference_data(s)
     merchant = s.execute(text("SELECT id FROM runtime.merchants LIMIT 1")).scalar()
     for i in range(n):
@@ -123,7 +122,7 @@ def test_dispatcher_cancels_before_send_when_halted(clean_db):  # type: ignore[n
             redis_client=_Flag(),
             rp_client=None,
             action_id=str(action_id),
-            now_sim=datetime.now(timezone.utc),
+            now_sim=datetime.now(UTC),
             mode=Mode.HALTED,
         )
         assert result.status == "cancelled_halt"

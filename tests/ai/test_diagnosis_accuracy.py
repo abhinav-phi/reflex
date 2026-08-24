@@ -18,23 +18,21 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-from data.generators.corpus_strings import (
-    DECLINE_STRINGS,
-    INJECTION_STRINGS,
-    RULES_MISS_STRINGS,
-    all_labeled,
-)
 from reflex.core.enums import CanonicalCode
 from reflex.core.settings import Settings
 from reflex.workers.diagnosis import diagnose_episode
 from reflex.workers.llm_client import LlmClient
 from reflex.workers.rules_dx import diagnose_rules
+
+from data.generators.corpus_strings import (
+    INJECTION_STRINGS,
+    all_labeled,
+)
 
 N_CASES = 500
 SEED = 2026  # holdout construction seed (not an eval seed; no metrics gate on it)
@@ -104,7 +102,7 @@ def _degraded_predict(text: str) -> tuple[CanonicalCode, float, str]:
         code_raw=text,
         rail="upi",
         amount_paise=29_900,
-        occurred_at=datetime(2026, 8, 25, 14, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 8, 25, 14, 30, tzinfo=UTC),
     )
     return res.canonical_code, res.confidence, res.method.value
 
@@ -156,7 +154,7 @@ def holdout_report() -> dict:  # type: ignore[type-arg]
         "# AI-1 Diagnosis Holdout — 500-case degraded-mode report",
         "",
         f"* Cases: **{len(cases)}** · construction seed `{SEED}` · `[SIMULATED]` corpus",
-        f"* Mode: LLM_API_KEY absent ⇒ rules-first, conservative `UNKNOWN_AMBIGUOUS` tail",
+        "* Mode: LLM_API_KEY absent ⇒ rules-first, conservative `UNKNOWN_AMBIGUOUS` tail",
         f"* End-to-end accuracy: **{accuracy:.2%}** ({correct}/{len(cases)})",
         f"* Rules coverage (share classified by rules alone): "
         f"**{report['rules_coverage']:.2%}** (target ≥70% of matchable events, TechSpec §7 AI-1)",

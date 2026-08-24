@@ -6,11 +6,10 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import text
-
 from reflex.api.security import require_role
 from reflex.core.enums import Decision
 from reflex.core.schemas import ApprovalDecisionRequest
+from sqlalchemy import text
 
 router = APIRouter()
 
@@ -144,6 +143,6 @@ def decide(
         raise
     except Exception as exc:
         s.rollback()
-        raise HTTPException(status_code=409, detail=str(exc)[:200])
+        raise HTTPException(status_code=409, detail=str(exc)[:200]) from exc
     finally:
         s.close()

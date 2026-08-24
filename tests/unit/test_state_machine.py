@@ -1,13 +1,12 @@
 """State machines: legal transitions, illegal raise, terminal frozen (AppFlow §14)."""
 
 import pytest
-
 from reflex.core.enums import ActionStatus, EpisodeStatus
 from reflex.core.state_machine import (
-    can_transition_action,
-    can_transition_episode,
     IllegalTransition,
     StateMachineMixin,
+    can_transition_action,
+    can_transition_episode,
 )
 
 

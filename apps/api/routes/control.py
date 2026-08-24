@@ -6,11 +6,11 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import text
-
 from reflex.api.security import require_role
 from reflex.core.enums import Mode, Role
 from reflex.core.schemas import ModeChangeRequest
+from reflex.ledger.chain import LedgerWriter
+from sqlalchemy import text
 
 router = APIRouter()
 
@@ -63,10 +63,11 @@ def set_mode(
         )
         s.commit()
     except HTTPException:
-        s.rollback(); raise
+        s.rollback()
+        raise
     except Exception as exc:
         s.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)[:200])
+        raise HTTPException(status_code=400, detail=str(exc)[:200]) from exc
     finally:
         s.close()
 
@@ -82,7 +83,6 @@ def set_mode(
 def _drain_on_halt() -> int:
     """Cancel scheduled/waiting actions → CANCELLED_HALT; episodes → HALTED."""
     from reflex.api.db import agent_sessionmaker
-    from sqlalchemy import literal
 
     s = agent_sessionmaker()()
     try:

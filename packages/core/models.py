@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from reflex.core import enums
 from sqlalchemy import (
     NUMERIC,
     BigInteger,
@@ -25,8 +26,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from reflex.core import enums
 
 
 class Base(DeclarativeBase):

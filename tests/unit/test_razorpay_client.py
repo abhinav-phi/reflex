@@ -11,11 +11,10 @@ Covers:
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import httpx
 import pytest
-
 import reflex.connectors.razorpay as rzp
 from reflex.connectors.errors import RazorpayTimeout, TestModeViolation
 from reflex.connectors.razorpay import RazorpayTestModeClient

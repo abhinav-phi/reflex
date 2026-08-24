@@ -1,15 +1,14 @@
 """Load gate (TechSpec §18): 5k burst with 40% dupes — zero dup episodes."""
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import text
-
 from reflex.api.db import eval_sessionmaker
 from reflex.api.ingest_service import ingest_event
 from reflex.core.enums import EventSource
 from reflex.eval.seed import ensure_reference_data
+from sqlalchemy import text
 
 
 @pytest.mark.load
@@ -18,7 +17,7 @@ def test_burst_5k_with_dupes(clean_db):  # type: ignore[no-untyped-def]
     s = eval_sessionmaker()()
     try:
         ensure_reference_data(s)
-        base = datetime.now(timezone.utc).replace(microsecond=0)
+        base = datetime.now(UTC).replace(microsecond=0)
 
         def norm(i: int) -> dict:
             return {

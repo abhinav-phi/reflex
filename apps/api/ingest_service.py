@@ -13,12 +13,16 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
-from reflex.core.enums import EPISODE_WINDOW_HOURS, Arm, CanonicalCode, EpisodeStatus, EventSource, Rail
+from reflex.core.enums import (
+    EPISODE_WINDOW_HOURS,
+    Arm,
+    EventSource,
+    Rail,
+)
 from reflex.core.pii import scrub_payload
 from reflex.ledger.chain import LedgerWriter
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.pulse")
 

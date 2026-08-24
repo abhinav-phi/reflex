@@ -12,24 +12,21 @@ from __future__ import annotations
 import json
 import subprocess
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 import structlog
-from sqlalchemy import text
-from sqlalchemy.orm import Session
-
 from reflex.core.enums import Arm
 from reflex.eval.generator import (
-    DEMO_N,
-    DEMO_SEED,
     SIMULATOR_VERSION,
     generate_batch,
     seed_to_int,
 )
 from reflex.eval.pipeline import ArmResult, PipelineConfig, run_arm
 from reflex.eval.seed import ensure_reference_data
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 log = structlog.get_logger("reflex.eval")
 
@@ -118,7 +115,6 @@ def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = Fal
     Runtime rows (merchant/customers) are shared reference data created by seed;
     episodes/actions are created by pipeline runs tagged with arm.
     """
-    from dataclasses import asdict
 
     batch = generate_batch(seed=seed, n=n, demo=demo)
     merchant_id = session.execute(
@@ -212,7 +208,6 @@ def _persist_run(
         "complaint_rate",
         result.complaints / result.episodes_total if result.episodes_total else 0.0,
     )
-    ttr = _bootstrap_ci(np.array(result.recovery_latencies)) if result.recovery_latencies else (None, None, None)
     add("ttr_median", float(np.median(result.recovery_latencies)) if result.recovery_latencies else None)
     add("contacts_per_recovery", result.contacts / result.recovered_episodes if result.recovered_episodes else None)
 
@@ -250,7 +245,7 @@ def run_batch_arms(
 
     batch, customer_ids, merchant_id = batch_tuple
     arms = arms or [Arm.B0, Arm.B1, Arm.REFLEX]
-    opened = datetime.now(timezone.utc).replace(microsecond=0)
+    opened = datetime.now(UTC).replace(microsecond=0)
     results: dict[str, ArmResult] = {}
 
     tasks: list[tuple[str, Arm, str | None, PipelineConfig | None]] = []
@@ -350,7 +345,7 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
             tasks.append((seed, batch_id, batch_tuple, f"reflex:{abl_name}", Arm.REFLEX, abl_name, cfg))
 
     all_results: dict[int, dict[str, ArmResult]] = {seed: {} for seed, _b, _t in prepared}
-    OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(timezone.utc).replace(microsecond=0)}
+    OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(UTC).replace(microsecond=0)}
     # parallel=1 serializes arm execution: at N=3000 the arms' long transactions
     # row-contend on shared customers/suppressions and Postgres deadlocks become
     # routine; official runs therefore default to serial (see PROTOCOL.md §4).
@@ -478,11 +473,11 @@ def build_summary(all_results: dict, quick: bool = False) -> dict:  # type: igno
         if arm_key == "reflex":
             inc_num: list[int] = []
             inc_paise: list[int] = []
-            for seed, res_map in sorted(all_results.items()):
+            for _seed, res_map in sorted(all_results.items()):
                 rf, b1 = res_map.get("reflex"), res_map.get("b1")
                 if rf is None or b1 is None:
                     continue
-                for a_r, a_b in zip(rf.ep_rec_paise, b1.ep_rec_paise):
+                for a_r, a_b in zip(rf.ep_rec_paise, b1.ep_rec_paise, strict=True):
                     inc_num.append(a_r - a_b)
                 inc_paise.append(rf.recovered_paise - b1.recovered_paise)
             # PROTOCOL.md §2.3: incremental_recovery_rate = rr(reflex) − rr(b1) in
@@ -520,7 +515,7 @@ def _mean(vals: list[float]) -> float | None:
 
 
 def write_artifacts(summary: dict, official: bool) -> str:
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     label = "" if official else "-smoke"
     out_dir = RESULTS_DIR / f"{stamp}{label}"
     out_dir.mkdir(parents=True, exist_ok=True)
