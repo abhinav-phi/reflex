@@ -10,17 +10,24 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="reflex-eval")
     parser.add_argument("command", choices=["smoke", "run"])
     parser.add_argument("--n", type=int, default=None, help="override episodes per batch")
+    parser.add_argument(
+        "--parallel", type=int, default=None,
+        help="override concurrent arm workers (official runs default to 1: serial arms avoid cross-arm deadlocks)",
+    )
     args = parser.parse_args()
 
     from reflex.eval.runner import run_protocol_sync
 
+    override: dict = {}
+    if args.n:
+        override["n"] = args.n
+    if args.parallel:
+        override["parallel"] = args.parallel
+
     if args.command == "smoke":
-        summary = run_protocol_sync(
-            quick=True,
-            config_override={"n": args.n} if args.n else None,
-        )
+        summary = run_protocol_sync(quick=True, config_override=override or None)
     else:
-        summary = run_protocol_sync(config_override={"n": args.n} if args.n else None)
+        summary = run_protocol_sync(config_override=override or None)
     print(json.dumps(summary, indent=2))
     return 0
 

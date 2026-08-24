@@ -188,6 +188,10 @@ def stop_customer(
     # (N=3000 x 4 parallel arms) that starved every arm behind one idle-in-
     # transaction holder. A session-level lock released in `finally` keeps the
     # single-key no-cycle property with millisecond hold times.
+    #
+    # NO exception swallowing here: a Postgres deadlock victim must propagate
+    # so the caller rolls back and retries — swallowing leaves the transaction
+    # aborted and poisons every later statement in the arm.
     locked = False
     try:
         session.execute(text("SELECT pg_advisory_lock(723302)"))
@@ -201,11 +205,15 @@ def stop_customer(
                 ),
                 {"c": customer_id, "r": reason.value, "s": suppression_source},
             )
-    except Exception:
-        pass  # already suppressed — idempotent intent
     finally:
         if locked:
-            session.execute(text("SELECT pg_advisory_unlock(723302)"))
+            try:
+                session.execute(text("SELECT pg_advisory_unlock(723302)"))
+            except Exception:
+                # Aborted/deadlocked transaction: end it so the pooled
+                # connection resets and releases session-level locks.
+                session.rollback()
+                raise
     ledger = LedgerWriter(session)
     ledger.append(
         episode_id=episode_id,

@@ -351,7 +351,11 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
 
     all_results: dict[int, dict[str, ArmResult]] = {seed: {} for seed, _b, _t in prepared}
     OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(timezone.utc).replace(microsecond=0)}
-    workers = min(len(tasks), 4)
+    # parallel=1 serializes arm execution: at N=3000 the arms' long transactions
+    # row-contend on shared customers/suppressions and Postgres deadlocks become
+    # routine; official runs therefore default to serial (see PROTOCOL.md §4).
+    default_parallel = 1 if n >= 3000 else 4
+    workers = min(len(tasks), int((config_override or {}).get("parallel", default_parallel)))
 
     def _one(task: tuple) -> None:  # type: ignore[type-arg]
         seed, batch_id, batch_tuple, key, arm, ablation, cfg = task
