@@ -24,7 +24,7 @@ class RuleHit:
 # Ordered patterns; first match wins. Patterns are case-insensitive.
 _PATTERNS: tuple[tuple[re.Pattern[str], CanonicalCode, str], ...] = (
     (
-        re.compile(r"revok|withdraw|auto.?pay.{0,12}cancell?|mandate.{0,16}(cancel|remov)", re.I),
+        re.compile(r"revok|withdraw|auto.?pay.{0,12}cancell?|mandate.{0,16}(cancel|remov)|auto.?debit.{0,24}(remov|cancel|revok)|authorization removed", re.I),
         CanonicalCode.MANDATE_REVOKED,
         "mandate revoked/withdrawn by customer",
     ),
@@ -53,14 +53,14 @@ _PATTERNS: tuple[tuple[re.Pattern[str], CanonicalCode, str], ...] = (
     ),
     (
         re.compile(
-            r"downtime|bank.?down|issuer unavailable|issuer timeout|maintenance|link failure",
+            r"downtime|bank.?down|(bank|server).{0,14}\bdown\b|issuer unavailable|issuer timeout|maintenance|link failure",
             re.I,
         ),
         CanonicalCode.ISSUER_DOWNTIME,
         "issuer downtime window",
     ),
     (
-        re.compile(r"(insufficient|insuf|low)\s*(balance|bal|funds)|nsf\b|balance nahin|no enough balance", re.I),
+        re.compile(r"(insufficient|insuf|low)[\s_-]*(balance|bal|funds)|nsf\b|balance nahin|no enough balance", re.I),
         CanonicalCode.INSUFFICIENT_FUNDS,
         "insufficient funds at debit time",
     ),
@@ -70,20 +70,33 @@ _PATTERNS: tuple[tuple[re.Pattern[str], CanonicalCode, str], ...] = (
         "mandate amount cap breached",
     ),
     (
-        re.compile(r"invalid vpa|vpa does not exist|handle not found|invalid upi|handle resolution failed", re.I),
+        re.compile(r"invalid vpa|\bvpa\b.{0,24}\binvalid\b|vpa does not exist|handle not found|invalid upi|handle resolution failed", re.I),
         CanonicalCode.INVALID_VPA,
         "invalid UPI handle",
     ),
     (
-        re.compile(r"do not honor|soft.?decline|generic decline|code 05\b|transient|auth declined", re.I),
+        re.compile(r"do not honor|soft.?decline|generic decline|code 05\b|transient|auth declined|risk.?lite|may pass later|reject kiya.{0,30}try|dobara try ho sakta", re.I),
         CanonicalCode.AUTH_DECLINED_SOFT,
         "temporary auth decline",
     ),
 )
 
 
+# Prompt-injection markers: input containing any of these is attacker DATA,
+# never a decline string — fail-closed with no rule hit (⇒ <data>-wrapped LLM
+# tail in live mode; conservative UNKNOWN_AMBIGUOUS fallback when degraded).
+# Corpus: data/generators/corpus_strings.py INJECTION_STRINGS.
+_INJECTION_MARKERS = re.compile(
+    r"ignore all previous instructions|disregard rules|</?data>|\bsystem:\s|"
+    r"reveal your prompt|print your system prompt|canonical_code\s*=",
+    re.I,
+)
+
+
 def diagnose_rules(code_raw: str) -> RuleHit | None:
     """Return a confident RULE hit or None (⇒ LLM tail). Deterministic."""
+    if _INJECTION_MARKERS.search(code_raw):
+        return None
     for pattern, code, why in _PATTERNS:
         if pattern.search(code_raw):
             return RuleHit(canonical_code=code, confidence=1.0, rationale=f"RULE match: {why}")

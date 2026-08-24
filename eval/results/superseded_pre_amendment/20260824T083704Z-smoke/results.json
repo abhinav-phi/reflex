@@ -1,0 +1,229 @@
+{
+  "[SIMULATED]": true,
+  "protocol": "smoke-NON-OFFICIAL",
+  "seeds": [
+    42
+  ],
+  "arms": {
+    "b0": {
+      "recovery_rate_pct": {
+        "point": 5.96,
+        "ci_low": 0.0,
+        "ci_high": 0.01
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 5.96
+      },
+      "ttr_median_secs": null,
+      "contacts_per_recovery": {
+        "point": 0.0
+      }
+    },
+    "b1": {
+      "recovery_rate_pct": {
+        "point": 22.76,
+        "ci_low": 0.01,
+        "ci_high": 0.03
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 22.76
+      },
+      "ttr_median_secs": {
+        "point": 15410.5
+      },
+      "contacts_per_recovery": {
+        "point": 2.346
+      }
+    },
+    "reflex": {
+      "recovery_rate_pct": {
+        "point": 46.11,
+        "ci_low": 0.02,
+        "ci_high": 0.08
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 46.11
+      },
+      "ttr_median_secs": {
+        "point": 41089.0
+      },
+      "contacts_per_recovery": {
+        "point": 1.839
+      },
+      "incremental_vs_b1_pp": {
+        "point": 50.65,
+        "ci_low": 0.0,
+        "ci_high": 0.12
+      },
+      "incremental_paise": {
+        "total_pooled": 840200
+      },
+      "losing_cohort_declines": 48
+    },
+    "reflex:A1": {
+      "recovery_rate_pct": {
+        "point": 46.11,
+        "ci_low": 0.02,
+        "ci_high": 0.08
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 46.11
+      },
+      "ttr_median_secs": {
+        "point": 41089.0
+      },
+      "contacts_per_recovery": {
+        "point": 1.839
+      },
+      "losing_cohort_declines": 48
+    },
+    "reflex:A2": {
+      "recovery_rate_pct": {
+        "point": 51.58,
+        "ci_low": 0.03,
+        "ci_high": 0.08
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 51.57
+      },
+      "ttr_median_secs": {
+        "point": 46944.5
+      },
+      "contacts_per_recovery": {
+        "point": 2.391
+      },
+      "losing_cohort_declines": 1
+    },
+    "reflex:A3": {
+      "recovery_rate_pct": {
+        "point": 46.11,
+        "ci_low": 0.02,
+        "ci_high": 0.08
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 46.11
+      },
+      "ttr_median_secs": {
+        "point": 41089.0
+      },
+      "contacts_per_recovery": {
+        "point": 1.839
+      },
+      "losing_cohort_declines": 48
+    },
+    "reflex:A4": {
+      "recovery_rate_pct": {
+        "point": 37.23,
+        "ci_low": 0.02,
+        "ci_high": 0.07
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 37.23
+      },
+      "ttr_median_secs": {
+        "point": 11496.0
+      },
+      "contacts_per_recovery": {
+        "point": 1.037
+      },
+      "losing_cohort_declines": 42
+    },
+    "reflex:DEGRADED": {
+      "recovery_rate_pct": {
+        "point": 46.11,
+        "ci_low": 0.02,
+        "ci_high": 0.08
+      },
+      "cost_per_100": {
+        "point": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.0
+      },
+      "complaint_rate_pct": {
+        "point": 0.833,
+        "ci_low": 0.0,
+        "ci_high": 2.5
+      },
+      "recovery_rate_per_seed_pct": {
+        "42": 46.11
+      },
+      "ttr_median_secs": {
+        "point": 41089.0
+      },
+      "contacts_per_recovery": {
+        "point": 1.839
+      },
+      "losing_cohort_declines": 48
+    }
+  }
+}

@@ -349,8 +349,9 @@ def _run_arm_inner(
                 st["recovered"] = True
                 result.recovered_paise += ev.amount_paise
                 result.recovered_episodes += 1
-                if evt.payload.get("action_id"):
-                    result.recovery_latencies.append(float(latency))
+                # TTR is protocol-defined over ALL recovered episodes (PROTOCOL.md
+                # §2.6), including organic B0 recoveries — not just action-driven ones.
+                result.recovery_latencies.append(float(latency))
 
         elif kind == "reply":
             if st is None:

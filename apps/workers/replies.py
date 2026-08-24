@@ -34,6 +34,29 @@ _OPTOUT_KEYWORDS = (
 )
 _PROMISE_KEYWORDS = ("kal", "pakka", "promise", "will pay", "karta hoon", "karunga", "kar dungi", "friday", "monday", "salary")
 
+# Sarcastic / negative-polarity phrases (P1-2): a sardonic "yes, take the money"
+# is NOT a payment promise. These fire deterministically BEFORE LLM acceptance
+# so a confident false-positive PROMISE/PAYING can never schedule another debit
+# against an account the customer is saying is empty. Explicit COMPLAINT/OPTOUT
+# keywords still outrank this gate (suppression classes are fail-closed).
+_SARCASM_PHRASES = (
+    # English sarcasm
+    "debit my empty account",
+    "empty account again",
+    "take my money i don't have",
+    "no money to pay you",
+    # Hinglish sarcasm / stated inability
+    "jab hai hi nahi",        # "...when there isn't any (money)"
+    "jab hai hi nahin",
+    "paisa hai hi nahi",
+    "paisa hai hi nahin",
+    "paise hai hi nahi",
+    "paise hai hi nahin",
+    "paise nahi hain",
+    "kat lo paise",
+    "kaat lo paise",
+)
+
 
 @dataclass(frozen=True)
 class ReplyClassification:
@@ -71,6 +94,16 @@ def classify_reply(
         intent, kw = ruled
         log.info("reply_rule_gate", intent=intent, keyword=kw)
         return ReplyClassification(intent, None, "RULE", f"keyword gate: {kw!r}", 1.0)
+
+    # 1b) sarcasm/negative-polarity gate: never let a sardonic reply be read as
+    # a promise to pay — safe AMBIGUOUS (non-response) instead of CONFIRM_RETRY.
+    low = clean.lower()
+    for phrase in _SARCASM_PHRASES:
+        if phrase in low:
+            log.info("reply_sarcasm_gate", phrase=phrase)
+            return ReplyClassification(
+                "AMBIGUOUS", None, "RULE", f"sarcasm/negative-polarity gate: {phrase!r}", 1.0
+            )
 
     # 2) LLM classification with <data> wrapping + schema validation + retry-once
     if llm.configured and not llm.health.is_outage():

@@ -10,10 +10,11 @@ IST = "Asia/Kolkata"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore")
 
-    # Database
-    database_url: str = "postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:5432/reflex"
-    database_url_admin: str = "postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex"
-    database_url_eval: str = "postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:5432/reflex"
+    # Database — host port 15432 (compose maps 15432->5432 to dodge Windows
+    # excluded-port ranges; see docker-compose.yml + MANUAL_STEPS.md §10)
+    database_url: str = "postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex"
+    database_url_admin: str = "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex"
+    database_url_eval: str = "postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:15432/reflex"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

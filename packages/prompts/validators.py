@@ -4,7 +4,11 @@
   retry by caller, second failure ⇒ deterministic fallback (UNKNOWN_AMBIGUOUS /
   non-response default).
 - MessageSpanValidator: the digit/URL/₹ guard — rejects ANY digit, URL,
-  rupee sign, or UPI prefix inside an LLM-generated span (Rules §2.2).
+  rupee sign, or UPI prefix inside an LLM-generated span (Rules §2.2), plus any
+  spelled-out number/currency word (Hinglish or English): an LLM can bypass the
+  digit regex by verbalizing amounts ("teen sau rupaye", "five hundred"), so
+  such spans are rejected wholesale and the deterministic slot-template renders
+  the amount instead.
 """
 
 from __future__ import annotations
@@ -19,6 +23,21 @@ from reflex.core.enums import CanonicalCode
 
 # Validator regex per TechSpec §7 AI-3: any digit, http, ₹, or UPI- in an LLM span.
 _FORBIDDEN = re.compile(r"\d|http|₹|UPI-", re.IGNORECASE)
+
+# Spelled-out number/currency words (P1-1 "Hinglish loophole" fix). Matched as
+# whole words, case-insensitive. Strictness is deliberate: a false-positive
+# rejection costs only the safe deterministic template, while a miss lets an
+# unverifiable verbalized amount reach a customer.
+_NUMBER_WORDS: frozenset[str] = frozenset({
+    # Hindi / Hinglish numerals & currency
+    "ek", "do", "teen", "char", "paanch", "chhah", "saat", "aath", "nau",
+    "das", "sau", "hazaar", "lakh", "crore", "rupaye", "rupya", "paise",
+    # English numerals & currency
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+    "nine", "ten", "hundred", "thousand", "rupees", "bucks",
+})
+
+_SPAN_WORDS = re.compile(r"[A-Za-z]+")
 
 
 class DiagnosisOutput(BaseModel):
@@ -112,10 +131,14 @@ class MessageSpanValidator:
     def reject_reason(span: str) -> str | None:
         """Return a rejection reason, or None when span is clean."""
         match = _FORBIDDEN.search(span)
-        if match is None:
-            return None
-        start = max(0, match.start() - 20)
-        return f"forbidden token {match.group(0)!r} near ...{span[start : match.end() + 20]!r}"
+        if match is not None:
+            start = max(0, match.start() - 20)
+            return f"forbidden token {match.group(0)!r} near ...{span[start : match.end() + 20]!r}"
+        for word in _SPAN_WORDS.findall(span):
+            if word.lower() in _NUMBER_WORDS:
+                start = max(0, span.lower().find(word.lower()) - 20)
+                return f"spelled-out number/currency word {word!r} near ...{span[start : start + len(word) + 40]!r}"
+        return None
 
     @staticmethod
     def is_clean(span: str) -> bool:

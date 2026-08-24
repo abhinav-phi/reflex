@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 config = context.config
 
 if not config.get_main_option("sqlalchemy.url"):
-    admin_url = os.environ.get("DATABASE_URL_ADMIN", "postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex")
+    # Host port 15432 (compose maps 15432->5432); see docker-compose.yml + MANUAL_STEPS.md §10
+    admin_url = os.environ.get("DATABASE_URL_ADMIN", "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex")
     config.set_main_option("sqlalchemy.url", admin_url)
 
 target_metadata = None  # raw-SQL baseline; forward-only during buildathon (Schema §14)

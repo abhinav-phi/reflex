@@ -36,7 +36,7 @@ log = structlog.get_logger("reflex.eval")
 PREREG_TAG = "eval-preregistered-v1"
 EVAL_SEEDS = [42, 1337, 2025]
 BOOTSTRAP_RESAMPLES = 1000
-RESULTS_DIR = Path(__file__).resolve().parents[3] / "eval" / "results"
+RESULTS_DIR = Path(__file__).resolve().parents[2] / "eval" / "results"
 
 ABLATIONS: dict[str, PipelineConfig] = {
     "A1": PipelineConfig(llm_tail_enabled=False),
@@ -68,7 +68,9 @@ def _bootstrap_ratio_ci(
     d = np.asarray(denom, dtype=float)
     rng = np.random.default_rng(rng_seed)
     idx = rng.integers(0, n, size=(BOOTSTRAP_RESAMPLES, n))
-    stats = a[idx].sum(axis=1) / d[idx].sum()
+    # NB: both reductions need axis=1 — a scalar .sum() on the resampled
+    # denominator silently divides every stat by BOOTSTRAP_RESAMPLES.
+    stats = a[idx].sum(axis=1) / d[idx].sum(axis=1)
     point = float(a.sum() / d.sum())
     return (float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5)), point)
 
@@ -98,6 +100,16 @@ def _pool(all_results: dict, key: str, field: str) -> list:
         if r is not None:
             out.extend(getattr(r, field))
     return out
+
+
+def _round_or_none(x: float | None, nd: int = 2) -> float | None:
+    """Round for artifact output; non-finite (undefined ratio) ⇒ null."""
+    if x is None:
+        return None
+    x = float(x)
+    if x != x or x in (float("inf"), float("-inf")):
+        return None
+    return round(x, nd)
 
 
 def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = False) -> tuple[str, object]:
@@ -432,15 +444,16 @@ def build_summary(all_results: dict, quick: bool = False) -> dict:  # type: igno
         denom = [int(failed_total / max(n_eps, 1))] * n_eps
 
         lo, hi, pt = _bootstrap_ratio_ci(rec_n, denom)
-        entry["recovery_rate_pct"] = {"point": round(pt * 100, 2), "ci_low": round(lo * 100, 2), "ci_high": round(hi * 100, 2)}
+        entry["recovery_rate_pct"] = {"point": _round_or_none(pt * 100), "ci_low": _round_or_none(lo * 100), "ci_high": _round_or_none(hi * 100)}
 
         lo_c, hi_c, pt_c = _bootstrap_ratio_ci(cost_n, rec_n) if sum(rec_n) else (None, None, None)
-        entry["cost_per_100"] = {"point": None if pt_c is None else round(pt_c, 2),
-                                 "ci_low": None if lo_c is None else round(lo_c, 2),
-                                 "ci_high": None if hi_c is None else round(hi_c, 2)}
+        # cost per ₹100 recovered = 100 × Σcost/Σrecovered (protocol §2.4)
+        entry["cost_per_100"] = {"point": _round_or_none(None if pt_c is None else pt_c * 100),
+                                 "ci_low": _round_or_none(None if lo_c is None else lo_c * 100),
+                                 "ci_high": _round_or_none(None if hi_c is None else hi_c * 100)}
 
         lo_m, hi_m, pt_m = _bootstrap_mean_ci([float(x) for x in comp_n])
-        entry["complaint_rate_pct"] = {"point": round(pt_m * 100, 3), "ci_low": round(lo_m * 100, 3), "ci_high": round(hi_m * 100, 3)}
+        entry["complaint_rate_pct"] = {"point": _round_or_none(pt_m * 100, 3), "ci_low": _round_or_none(lo_m * 100, 3), "ci_high": _round_or_none(hi_m * 100, 3)}
 
         ttrs = []
         cprs = []
@@ -460,7 +473,6 @@ def build_summary(all_results: dict, quick: bool = False) -> dict:  # type: igno
 
         if arm_key == "reflex":
             inc_num: list[int] = []
-            inc_den: list[int] = []
             inc_paise: list[int] = []
             for seed, res_map in sorted(all_results.items()):
                 rf, b1 = res_map.get("reflex"), res_map.get("b1")
@@ -468,10 +480,19 @@ def build_summary(all_results: dict, quick: bool = False) -> dict:  # type: igno
                     continue
                 for a_r, a_b in zip(rf.ep_rec_paise, b1.ep_rec_paise):
                     inc_num.append(a_r - a_b)
-                    inc_den.append(a_r)  # ratio vs episode value proxy
                 inc_paise.append(rf.recovered_paise - b1.recovered_paise)
-            lo_i, hi_i, pt_i = _bootstrap_ratio_ci(inc_num, inc_den)
-            entry["incremental_vs_b1_pp"] = {"point": round(pt_i * 100, 2), "ci_low": round(lo_i * 100, 2), "ci_high": round(hi_i * 100, 2)}
+            # PROTOCOL.md §2.3: incremental_recovery_rate = rr(reflex) − rr(b1) in
+            # percentage points. Same batch ⇒ identical per-episode denominators,
+            # so the paired difference of value-weighted ratios uses the same
+            # constant-denominator basis as the recovery-rate CI above.
+            n_inc = len(inc_num)
+            denom_inc = [int(failed_total / max(n_inc, 1))] * n_inc
+            lo_i, hi_i, pt_i = _bootstrap_ratio_ci(inc_num, denom_inc)
+            entry["incremental_vs_b1_pp"] = {
+                "point": _round_or_none(pt_i * 100),
+                "ci_low": _round_or_none(lo_i * 100),
+                "ci_high": _round_or_none(hi_i * 100),
+            }
             entry["incremental_paise"] = {"total_pooled": sum(inc_paise)}
             declined = sum(len(r.declined_cohort) for rm in all_results.values() if (r := rm.get("reflex")))
             entry["losing_cohort_declines"] = declined

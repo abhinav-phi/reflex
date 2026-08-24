@@ -1,0 +1,60 @@
+{
+  "suite": "dx_holdout",
+  "n_cases": 500,
+  "seed": 2026,
+  "llm_configured": false,
+  "mode": "degraded (rules + conservative UNKNOWN_AMBIGUOUS fallback)",
+  "accuracy": 1.0,
+  "correct": 500,
+  "rules_fired": 448,
+  "rules_coverage": 0.896,
+  "per_code_support": {
+    "INVALID_VPA": 36,
+    "MANDATE_LIMIT_BREACH": 36,
+    "UNKNOWN_AMBIGUOUS": 52,
+    "INSUFFICIENT_FUNDS": 63,
+    "RISK_HELD": 36,
+    "EXPIRED_CARD": 45,
+    "AUTH_DECLINED_SOFT": 54,
+    "ISSUER_DOWNTIME": 45,
+    "CUSTOMER_INITIATED": 34,
+    "MANDATE_REVOKED": 54,
+    "AUTH_DECLINED_HARD": 45
+  },
+  "injection_cases_safe": true,
+  "confusion_matrix": {
+    "INSUFFICIENT_FUNDS": {
+      "INSUFFICIENT_FUNDS": 63
+    },
+    "ISSUER_DOWNTIME": {
+      "ISSUER_DOWNTIME": 45
+    },
+    "EXPIRED_CARD": {
+      "EXPIRED_CARD": 45
+    },
+    "AUTH_DECLINED_SOFT": {
+      "AUTH_DECLINED_SOFT": 54
+    },
+    "AUTH_DECLINED_HARD": {
+      "AUTH_DECLINED_HARD": 45
+    },
+    "RISK_HELD": {
+      "RISK_HELD": 36
+    },
+    "MANDATE_REVOKED": {
+      "MANDATE_REVOKED": 54
+    },
+    "MANDATE_LIMIT_BREACH": {
+      "MANDATE_LIMIT_BREACH": 36
+    },
+    "INVALID_VPA": {
+      "INVALID_VPA": 36
+    },
+    "CUSTOMER_INITIATED": {
+      "CUSTOMER_INITIATED": 34
+    },
+    "UNKNOWN_AMBIGUOUS": {
+      "UNKNOWN_AMBIGUOUS": 52
+    }
+  }
+}

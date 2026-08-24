@@ -28,11 +28,13 @@ done
 if [ ! -d ".venv" ]; then
   python -m venv .venv
 fi
-PIP=".venv/bin/pip"
-if [ "$(uname)" = "Windows"* ] || [ -n "${WSL_DISTRO_NAME:-}" ] && [ -f ".venv/Scripts/pip.exe" ]; then
-  PIP=".venv/Scripts/pip"
+# Windows venvs put interpreters in Scripts/, POSIX in bin/ (Git Bash is Windows).
+if [ -f ".venv/Scripts/python.exe" ]; then
+  PY=".venv/Scripts/python.exe"
+else
+  PY=".venv/bin/python"
 fi
-$PIP install -e . --quiet
+$PY -m pip install -e . --quiet
 
 export DATABASE_URL_ADMIN="${DATABASE_URL_ADMIN:-postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex}"
 export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex}"
@@ -41,9 +43,9 @@ export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
 export PYTHONIOENCODING=utf-8
 
 # 3) schema + reference data (idempotent)
-.venv/bin/python -m alembic upgrade head
-.venv/bin/python -m reflex.eval.seed
+$PY -m alembic upgrade head
+$PY -m reflex.eval.seed
 
 # 4) OFFICIAL pre-registered evaluation: 3 seeds x {b0,b1,reflex} x ablations A1-A4
-.venv/bin/python -m reflex.eval.cli run "$@"
+$PY -m reflex.eval.cli run "$@"
 echo "done — see eval/results/<run_id>/results.json and tables.md [SIMULATED]"
