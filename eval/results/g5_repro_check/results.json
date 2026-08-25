@@ -1,0 +1,98 @@
+{
+  "[SIMULATED]": true,
+  "purpose": "G5 reproduction + A2 divergence investigation (NOT headline evidence)",
+  "protocol": "eval-preregistered-v1",
+  "seed": 42,
+  "n": 3000,
+  "g5_tolerance_abs": 0.005,
+  "g5_all_arms_within_tolerance": false,
+  "g5_per_arm": {
+    "b0": {
+      "committed_pct": 4.11,
+      "rerun_pct": 4.11,
+      "diff_pp": 0.0049,
+      "within_tol": true
+    },
+    "b1": {
+      "committed_pct": 23.75,
+      "rerun_pct": 25.38,
+      "diff_pp": 1.6326,
+      "within_tol": false
+    },
+    "reflex": {
+      "committed_pct": 34.33,
+      "rerun_pct": 33.46,
+      "diff_pp": -0.8696,
+      "within_tol": false
+    },
+    "reflex:A1": {
+      "committed_pct": 34.33,
+      "rerun_pct": 33.46,
+      "diff_pp": -0.8696,
+      "within_tol": false
+    },
+    "reflex:A2": {
+      "committed_pct": 40.44,
+      "rerun_pct": 39.63,
+      "diff_pp": -0.8093,
+      "within_tol": false
+    },
+    "reflex:A3": {
+      "committed_pct": 34.33,
+      "rerun_pct": 33.46,
+      "diff_pp": -0.8696,
+      "within_tol": false
+    },
+    "reflex:A4": {
+      "committed_pct": 30.25,
+      "rerun_pct": 27.42,
+      "diff_pp": -2.8348,
+      "within_tol": false
+    },
+    "reflex:DEGRADED": {
+      "committed_pct": 34.33,
+      "rerun_pct": 33.46,
+      "diff_pp": -0.8696,
+      "within_tol": false
+    }
+  },
+  "a2_divergence": {
+    "episodes_total": 3000,
+    "both_recovered": {
+      "count": 686,
+      "value_paise": 34700900
+    },
+    "only_full_ev_recovered": {
+      "count": 15,
+      "value_paise": 1118700
+    },
+    "only_ev_off_recovered": {
+      "count": 407,
+      "value_paise": 7724000
+    },
+    "full_contacts": 1065,
+    "evoff_contacts": 2197,
+    "full_complaints": 5,
+    "evoff_complaints": 11,
+    "full_declined_cohort": 1221,
+    "evoff_declined_cohort": 66,
+    "full_cost_paise": 82038,
+    "evoff_cost_paise": 212828,
+    "only_a2_sample_codes": [
+      "AUTH_DECLINED_HARD",
+      "AUTH_DECLINED_SOFT",
+      "EXPIRED_CARD",
+      "INSUFFICIENT_FUNDS",
+      "ISSUER_DOWNTIME",
+      "MANDATE_LIMIT_BREACH",
+      "MANDATE_REVOKED",
+      "RISK_HELD",
+      "UNKNOWN_AMBIGUOUS"
+    ],
+    "only_reflex_sample_codes": [
+      "EXPIRED_CARD"
+    ]
+  },
+  "simulator_version": "sim-v1",
+  "wall_clock_opened_utc": "2026-08-25T05:46:14+00:00"
+}
