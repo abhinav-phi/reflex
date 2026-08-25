@@ -70,9 +70,9 @@ def db_admin():  # type: ignore[no-untyped-def]
 
 @pytest.fixture()
 def clean_db(db_admin):  # type: ignore[no-untyped-def]
-    from sqlalchemy import text
-
     import time
+
+    from sqlalchemy import text
 
     last_exc: Exception | None = None
     for attempt in range(3):
