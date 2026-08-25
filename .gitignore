@@ -42,3 +42,9 @@ Thumbs.db
 # Playwright
 test-results/
 playwright-report/
+
+#logs
+/github_logs
+# Local-only strays (kept on disk, never published)
+/I.java
+*.tsbuildinfo
