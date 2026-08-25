@@ -23,6 +23,38 @@ TRUNCATE runtime.episodes, runtime.payment_events, runtime.actions,
 """
 
 
+def _terminate_stray_backends(conn) -> None:  # type: ignore[no-untyped-def]
+    """Kill leftover 'idle in transaction' sessions from earlier tests (TestClient
+    lifespan engine pools, load-test helper connections). One such holder made
+    every later TRUNCATE deadlock in CI: it keeps row locks while TRUNCATE needs
+    AccessExclusiveLock, and the holder's next statement cycles into a lock wait.
+    Safe here: dedicated test database, we connect as its owner."""
+    from sqlalchemy import text
+
+    conn.execute(
+        text(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = current_database() AND pid <> pg_backend_pid() "
+            "AND state = 'idle in transaction'"
+        )
+    )
+    conn.commit()
+
+
+def _flush_rate_limits(app) -> None:  # type: ignore[no-untyped-def]
+    """Reset fixed-window limiter buckets. Every login in the suite shares the
+    'auth_login' bucket (limit 20/min) via TestClient's constant host, so a
+    full-suite CI run crosses the window and fails setup with 429s."""
+    redis = getattr(app.state, "redis", None)
+    if redis is None:
+        return
+    try:
+        for key in list(redis.scan_iter("rl:*")):
+            redis.delete(key)
+    except Exception:
+        pass  # limiter hygiene must never fail the test itself
+
+
 @pytest.fixture()
 def db_admin():  # type: ignore[no-untyped-def]
     from sqlalchemy import create_engine
@@ -40,8 +72,23 @@ def db_admin():  # type: ignore[no-untyped-def]
 def clean_db(db_admin):  # type: ignore[no-untyped-def]
     from sqlalchemy import text
 
-    db_admin.execute(text(TRUNCATE))
-    db_admin.commit()
+    import time
+
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            _terminate_stray_backends(db_admin)
+            db_admin.execute(text(TRUNCATE))
+            db_admin.commit()
+            break
+        except Exception as exc:  # belt-and-braces: self-heal a rare race
+            db_admin.rollback()
+            if "deadlock" not in str(exc).lower():
+                raise
+            last_exc = exc
+            time.sleep(0.5 * (attempt + 1))
+    else:
+        raise AssertionError(f"TRUNCATE deadlocked after retries: {last_exc}")
     yield db_admin
 
 
@@ -51,6 +98,7 @@ def client(clean_db):  # type: ignore[no-untyped-def]
     from reflex.api.main import app
 
     with TestClient(app) as c:
+        _flush_rate_limits(c.app)
         yield c
 
 
