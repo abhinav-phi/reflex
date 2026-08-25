@@ -13,6 +13,7 @@ Agent decisions never touch replay.* — the role boundary is enforced by grants
 from __future__ import annotations
 
 import argparse
+import json
 import signal
 import threading
 import time
@@ -89,9 +90,17 @@ def _rp_client():  # type: ignore[no-untyped-def]
 def _sim_bridge(agent_session, eval_session):  # type: ignore[no-untyped-def]
     from reflex.workers.simulator import SimulatorBridge
 
-    row = agent_session.execute(
-        text("SELECT id::text, seed FROM replay.replay_batches ORDER BY created_at DESC LIMIT 1")
-    ).first()
+    # replay.* is readable only by the eval role (ADR-004); the agent role gets
+    # InsufficientPrivilege here, which used to kill the dispatch loop.
+    s = eval_session or _eval_session()
+    owned = eval_session is None
+    try:
+        row = s.execute(
+            text("SELECT id::text, seed FROM replay.replay_batches ORDER BY created_at DESC LIMIT 1")
+        ).first()
+    finally:
+        if owned:
+            s.close()
     if row is None:
         return None
     return SimulatorBridge(eval_session, seed=int(row[1]), batch_id=row[0])
@@ -118,7 +127,11 @@ def run_diagnosis(stop: threading.Event) -> None:
         got_any = False
         for shard in range(DX_SHARDS):
             try:
-                msgs = r.xread({f"reflex:dx:{shard}": ">"}, count=10, block=200)
+                # NB: ">" is only valid for XREADGROUP — plain XREAD errors on
+                # it, which the except below used to swallow silently.
+                msgs = r.xreadgroup(
+                    "dx", f"diag-{shard}", {f"reflex:dx:{shard}": ">"}, count=10, block=200
+                )
             except Exception:
                 continue
             for stream_name, entries in msgs or []:
@@ -281,8 +294,13 @@ def _plan_due(r, llm, mode: Mode) -> int:  # type: ignore[no-untyped-def]
                 )
                 _bump(r, "shield_approval")
             elif plan.kind == "BLOCKED":
+                # Shield refused the plan at planning time. 'stopped_cap' is only
+                # reachable from 'observing' per the state-machine trigger —
+                # writing it here raised an illegal-transition error every tick.
+                # 'halted' is the legal terminal for a policy-refused episode
+                # (human-reviewable) and keeps the planner from hot-looping.
                 s.execute(
-                    text("UPDATE runtime.episodes SET status='stopped_cap' WHERE id=CAST(:e AS uuid) AND status='diagnosed'"),
+                    text("UPDATE runtime.episodes SET status='halted' WHERE id=CAST(:e AS uuid) AND status='diagnosed'"),
                     {"e": row["eid"]},
                 )
                 _bump(r, "shield_block")
@@ -346,6 +364,8 @@ def _dispatch_due(r, llm, rp, mode: Mode) -> int:  # type: ignore[no-untyped-def
                 action_id=aid,
                 now_sim=_now_sim(r),
                 mode=mode,
+                # SSE: stream every dispatched action to the console channel
+                publish=lambda evt, _r=r: _r.publish("reflex:events", json.dumps(evt)),
             )
             if dr.status == "dispatched":
                 n += 1
@@ -388,9 +408,13 @@ def _apply_sim_events(r) -> None:  # type: ignore[no-untyped-def]
     s = _agent_session()
     evs = None
     try:
-        batch = s.execute(
-            text("SELECT id::text, seed, created_at FROM replay.replay_batches ORDER BY created_at DESC LIMIT 1")
-        ).first()
+        evs0 = _eval_session()
+        try:
+            batch = evs0.execute(
+                text("SELECT id::text, seed, created_at FROM replay.replay_batches ORDER BY created_at DESC LIMIT 1")
+            ).first()
+        finally:
+            evs0.close()
         if batch is None:
             return
         clock_state = SimClock(r).state()

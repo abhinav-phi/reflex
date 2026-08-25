@@ -2,7 +2,7 @@
 
 > Single-source quick reference distilled from the 8 finalized docs (PRD · TechSpec · AppFlow · Design · Schema · ImplementationPlan · Tracker · Rules). Where this summary and the detailed docs disagree, **the detailed docs win**.
 
-> **v1.3 SYNC:** implementation is ~68% effective (28✅/20🟡/7❌/1⚠️ of 56 tasks). **No official evaluation results exist yet** — all % figures herein are design targets [SIMULATED]. Authoritative status: PRD §22 + ImplementationPlan snapshot + Tracker. *(v1.3: AI-4 recall gate shipped, `actions.llm_call_id` provenance FK live, RISK_HELD in mixture, kill-switch drain measured 25.5 ms, error envelope + Idempotency store enforced — see TechSpec §21.)*
+> **SYNC (post official run, 2026-08-24):** implementation is ~72% effective (31✅/19🟡/6❌/0⚠️ of 56 tasks). **The official pre-registered evaluation HAS EXECUTED** — protocol `eval-preregistered-v1`, N=3000 × seeds {42,1337,2025} × 8 arms, artifacts committed at **`eval/results/20260824T225305Z/`** (`results.json` + `tables.md`), ALL VALUES [SIMULATED]. Headline actuals: Reflex **31.40%** CI[28.94,33.98] · cost ₹0.27/₹100 · complaints 0.244% vs B1 21.16% / ₹0.15 / 0.567% vs B0 4.68%; incremental vs B1 **+10.24 pp** CI[+7.83,+12.62] — **G1 ≥ +15 pp gate MISSED**, G2/G3 pass. Honest record incl. degraded==full and A2 anomaly: **docs/limitations.md**. Authoritative status: PRD §22 + ImplementationPlan snapshot + Tracker.
 
 ---
 
@@ -17,7 +17,7 @@
 | **Tagline** | *Recover more, annoy less, prove everything.* |
 | **Governing principle** | **AI proposes, deterministic code disposes** — the LLM never authors an amount, link, deadline, or authorization |
 | **Integration reality** | Razorpay **test mode** `[TEST MODE]`; all channels & customer data `[SIMULATED]`; real channels `[PLANNED]` post-MVP |
-| **Status** | Design/docs complete (10 files, 56 tasks defined) · **build ~68% effective** (28✅/20🟡/7❌/1⚠️ — see §19; v1.3 fixes an earlier "build not started" contradiction here) |
+| **Status** | Design/docs complete (10 files, 56 tasks defined) · **build ~72% effective** (31✅/19🟡/6❌/0⚠️ — see §19) · **official pre-registered eval EXECUTED 2026-08-24** (`eval/results/20260824T225305Z/`, all values [SIMULATED]) |
 
 ---
 
@@ -282,14 +282,14 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 | Item | Status |
 |---|---|
 | 10 design docs | ✅ Finalized, cross-checked (v1.3 audit sync applied to all) |
-| Build | 🟡 **~68% effective** — 28✅ / 20🟡 / 7❌ / 1⚠️ of 56 tasks *(v1.3 fix: §1 and this row previously contradicted — "69%" here vs "not started" below; both now reflect the Tracker)* |
-| Official eval run | ⚠️ BLOCKED by host Docker issue — **v1.3 root cause: Windows excluded-port ranges cover 5432**; harness re-proven against healthy containers; workaround documented (TechSpec §21.2) |
-| Eval protocol tag | ✅ `eval-preregistered-v1` predates all results; amendment tag owed before official RISK_HELD run (TASK-053) |
+| Build | 🟡 **~72% effective** — 31✅ / 19🟡 / 6❌ / 0⚠️ of 56 tasks *(post-run update: TASK-033 executed; TASK-036 + TASK-053 closed)* |
+| Official eval run | ✅ **EXECUTED 2026-08-24** under `eval-preregistered-v1` — artifacts `eval/results/20260824T225305Z/` [SIMULATED]; Reflex 31.40% CI[28.94,33.98], B1 21.16%, B0 4.68%, incremental +10.24 pp CI[+7.83,+12.62] *(G1 ≥+15 pp missed; G2/G3 pass)*; earlier host blockers fixed (session-scoped advisory lock, serial arms, port 15432); superseded attempts archived with README |
+| Eval protocol tag | ✅ `eval-preregistered-v1` predates all results; Amendment-1 tags cut (`eval-protocol-amendment-risk-held`, `eval-preregistered-v1.1-risk-held-amendment`) and the official RISK_HELD-amended run has executed (TASK-053 done) |
 | Razorpay subscriptions "charge now" endpoint | `[TBD — verify existence/naming]`; fallback = new order + link (retry-honesty note in PRD §22.8) |
 | LLM model choice | `[Decision Required]` (MVP assumption: GPT-4o-mini-class); **a key MUST be configured for the live demo or AI-1/AI-3 fall back to rules/templates** |
 | External claims (Razorpay Agent Studio details, competitor stats, churn figures) | `[ASSUMPTION]` — run the 20-min verification protocol **before** citing in pitch/video |
 | README / LICENSE / CONTRIBUTING | 🟡 **README.md + CONTRIBUTING.md + MANUAL_STEPS.md created (v1.3)**; LICENSE pending from owner |
-| Milestones ahead | `eval-preregistered-v1` (done) → `eval-protocol-amendment-risk-held` → `v1.0-submission` |
+| Milestones ahead | `eval-preregistered-v1` (done) · `eval-protocol-amendment-risk-held` + `eval-preregistered-v1.1-risk-held-amendment` (cut; amended run executed) → `v1.0-submission` remains |
 
 ---
 
@@ -357,7 +357,7 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 
 **The loop:** diagnose the root cause (rules first, LLM for messy tail) → score every intervention by expected value (propensity × amount − cost − annoyance) → enforce deterministic guardrails (caps, budget, quiet hours, approvals, kill switch) → execute idempotently → observe, attribute, adapt → stop or escalate → hash-chain every decision.
 
-**The numbers it must produce** (pre-registered, reproducible, `[SIMULATED]`): **~42% recovery vs ~24% naive vs ~7% organic · ~₹3.0 vs ~₹6.9 per ₹100 recovered · <0.5% complaints · ~9h vs ~26h time-to-recover** — with ablations proving which AI component buys which points, and one cohort where the system correctly refuses to act.
+**The numbers it produced** (official run 2026-08-24, pre-registered, reproducible, `[SIMULATED]`; artifacts `eval/results/20260824T225305Z/`): **31.40% recovery CI[28.94,33.98] vs 21.16% tuned-naive vs 4.68% organic · ₹0.27 vs ₹0.15 per ₹100 recovered · 0.244% vs 0.567% complaints · median TTR 9.3 h (B0 organic 35.7 h)** — with ablations A1–A4 proving which component buys which points (timing ≈ +4.5 pp; EV-off anomaly at 36.85% disclosed), and a published cohort of 3,642 episodes where the system correctly refuses to act. Pre-registered targets were ~42%/~24%/~7%; actuals came in under them and the G1 ≥+15 pp incremental gate was missed (+10.24 pp) — reported honestly.
 
 **The identity:** *AI proposes, deterministic code disposes.* The LLM never touches a number; Shield never consults a model; the ledger never forgets.
 
@@ -367,7 +367,7 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 
 **Biggest risk:** simulator credibility — neutralized by calibration citations, pre-registration, a tuned baseline, and published loss cases.
 
-**Current state:** design complete (10 docs · 56 tasks · 4-day plan · 3 engineers); build ~68% effective — the critical path runs through TASK-033 (official eval, environment-unblocked workaround documented); README/LICENSE templates pending.
+**Current state:** design complete (10 docs · 56 tasks · 4-day plan · 3 engineers); build ~72% effective; **official pre-registered eval EXECUTED** (artifacts committed, all [SIMULATED]; run executed without an `LLM_API_KEY` ⇒ reflex arm == rules-first path end-to-end — see `docs/limitations.md`). Remaining: pitch video, live Razorpay test-mode observation (TASK-056), export UI wiring verification, second-run reproduction check (G5), LICENSE.
 
 ---
 

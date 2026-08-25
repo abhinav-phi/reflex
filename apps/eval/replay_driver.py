@@ -120,6 +120,25 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
                         redis_client.xadd(f"reflex:dx:{shard}", {"episode_id": str(res.episode_id)})
                     except Exception:
                         pass
+                    # SSE: the webhook path publishes episode.created (main.py);
+                    # replay ingestion must too, or the console never sees
+                    # episodes opened by a demo/replay batch.
+                    try:
+                        redis_client.publish(
+                            "reflex:events",
+                            json.dumps(
+                                {
+                                    "type": "episode.created",
+                                    "episode_id": str(res.episode_id),
+                                    "amount_paise": ev.amount_paise,
+                                    "rail": ev.rail,
+                                    "source": "replay",
+                                    "[SIMULATED]": True,
+                                }
+                            ),
+                        )
+                    except Exception:
+                        pass
             s.commit()
             try:
                 done = int(redis_client.incr("reflex:replay:fed") )

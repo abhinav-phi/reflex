@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from reflex.core import schemas as S
@@ -33,7 +32,6 @@ def pydantic_to_ts() -> str:
                 ts = "string"
             if "List[" in ann or "list[" in ann:
                 inner = "unknown"
-                lines_i = None
                 ts = f"{inner}[]"
             optional = not f.is_required()
             lines.append(f"  {fname}{'' if not optional else '?'}: {ts};")

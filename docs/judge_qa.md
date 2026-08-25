@@ -36,7 +36,7 @@ No — retries re-attempt one rail blindly. Reflex changes diagnosis→intervent
 Corporate bulk-gifting order — deliberately included to exercise the >₹50,000-class human approval gate. [Schema §13]
 
 **Q: What's NOT implemented?**
-Real channels (simulated), official eval results (run pending — host port issue root-caused, workaround documented), export UI wiring unverified (API shipped), mandate deep-journey UI, LICENSE file — all tracked in Tracker/limitations. README/CONTRIBUTING/MANUAL_STEPS are in the repo root.
+Real channels (simulated); the official eval HAS run ([SIMULATED], committed at `eval/results/20260824T225305Z/`) but without an LLM key — degraded==full caveat, and G5 second-run reproduction is pending; export UI wiring unverified (API shipped); live Razorpay test-mode observation (TASK-056); mandate deep-journey UI; pitch video — all tracked in Tracker/limitations. README/CONTRIBUTING/MANUAL_STEPS are in the repo root.
 
 **Q: Are the demo numbers real?**
-The counters on stage are live system output from a seeded, deterministic replay slice; the "42% vs 24% vs 7%" figures are pre-registered DESIGN TARGETS and are labeled as such until the official run commits results to `eval/results/`. [AppFlow §13 annotation, Rules §16]
+The counters on stage are live system output from a seeded, deterministic replay slice. The pre-registered targets were 42%/24%/7%; the official run's actuals [SIMULATED] are committed at `eval/results/20260824T225305Z/`: **31.40% vs 21.16% vs 4.68%** with bootstrap CIs, incremental vs naive +10.24 pp CI[+7.83,+12.62] — we miss the aspirational ≥+15 pp gate and say so plainly (`docs/limitations.md`). [AppFlow §13 annotation, Rules §16]
