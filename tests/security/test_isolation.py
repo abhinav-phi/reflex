@@ -11,10 +11,11 @@ REPO = Path(__file__).resolve().parents[2]
 # Shield may import ONLY stdlib + reflex.core (TechSpec §6 isolation contract)
 SHIELD_ALLOWED_PREFIXES = ("reflex.core", "reflex", "reflex.shield")
 
-# Agent decision code must never touch hidden replay truth by name
+# Agent decision code must never touch hidden replay truth by name.
+# packages/core is shared kernel: its models.py DEFINES the replay tables for
+# the Proof side (name-linting it is a false positive; the hard guarantee is
+# DB role grants). packages/shield has its own import-isolation test above.
 AGENT_DECISION_MODULES = [
-    "packages/core",
-    "packages/shield",
     "packages/brain",
     "apps/api/ingest_service.py",
     "apps/api/routes",
@@ -51,19 +52,23 @@ def test_shield_import_isolation():
 
 def test_agent_code_never_references_replay_tables():
     """Rules §17.7: agent decision modules must not read replay.sim_* (name-level
-    lint; the hard guarantee is the DB role)."""
-    banned = ["sim_customers", "sim_events"]
-    targets = [REPO / "apps" / "workers" / "planner.py",
-               REPO / "apps" / "workers" / "context.py",
-               REPO / "apps" / "workers" / "diagnosis.py"]
-    brain_dir = REPO / "packages" / "brain"
-    targets.extend(brain_dir.rglob("*.py"))
+    lint; the hard guarantee is the DB role). Covers the FULL declared
+    AGENT_DECISION_MODULES list — previously only three files were scanned,
+    leaving dispatcher/ingest/routes/core+shield unchecked."""
+    # Qualified names only: bare "sim_events" is also a local variable name in
+    # dispatcher (simulator response list) — the rule bans READING THE TABLES.
+    banned = ["replay.sim_customers", "replay.sim_events"]
+    targets: list[Path] = []
+    for entry in AGENT_DECISION_MODULES:
+        p = REPO / entry
+        if p.is_dir():
+            targets.extend(p.rglob("*.py"))
+        elif p.exists():
+            targets.append(p)
     for t in targets:
-        if not t.exists():
-            continue
         src = t.read_text(encoding="utf-8")
         for b in banned:
-            assert b not in src or b == "", f"{t.name} references {b}"
+            assert b not in src, f"{t.name} references {b}"
     # simulator.py is the ONLY allowed consumer (Proof side) — it must live in eval/sim module
     sim = (REPO / "apps" / "workers" / "simulator.py").read_text(encoding="utf-8")
     assert "replay.sim_customers" in sim  # exists, but ONLY there
