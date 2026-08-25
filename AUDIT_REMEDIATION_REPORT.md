@@ -70,3 +70,23 @@ Two audit passes: (1) twelve mechanical consistency clusters (amended mixture ev
 1. **Push pending commits when connectivity returns** — local `master` is ahead: `6d9fd9e` (results+P0-3+lint), `b485b8d` (export tests). Then fast-forward `main`.
 2. Record the 5-minute pitch (demo flow: `make up && make seed`, `scripts/start_demo.py`, console at :8080/:8899; quote official actuals + G1 miss honestly).
 3. Optional hardening: keyed rerun to measure LLM-tail value (opens G6 meaningfully); second identical run for G5 tolerance; A2 EV-off anomaly investigation before pilot; live Razorpay test-mode note (TASK-056 tail).
+
+
+---
+
+## Post-script (2026-08-25 — supersedes §5/§6 items above where they differ)
+
+This report was written before the G5 reproduction run completed. Latest measured findings live in
+`docs/limitations.md` and supersede this document as source-of-truth:
+
+- **G5 same-seed reproduction MEASURED FAIL** — full 8-arm seed-42 rerun (`scripts/g5_repro.py`,
+  artifacts `eval/results/g5_repro_check/`): b0 organic reproduces exactly (4.11% ⇒ batch/response
+  determinism holds); every contact-scheduling arm drifts −0.8 to −2.8 pp, outside the ±0.005
+  tolerance. Cause isolated to wall-clock `opened_at` scheduling; fix tracked TASK-061.
+- **A2 EV-off anomaly QUANTIFIED at episode level** — of the 1,221 episodes full-EV declines, 407
+  would have paid (₹77,240 [SIMULATED]) for ~₹1,300 of extra contact cost, spread across all nine
+  actionable codes; EV arithmetic verified unit-correct ⇒ cause is over-pessimistic v1 priors.
+  Remedy: protocol-disciplined v2 recalibration run — never a post-hoc tune of frozen v1 numbers.
+- **CI stabilization landed** (`tests/conftest.py`: rate-limit bucket flush per client test + stray
+  idle-in-transaction backend termination before TRUNCATE + deadlock retry) — GitHub Actions backend
+  job green (runs #10, #12).
