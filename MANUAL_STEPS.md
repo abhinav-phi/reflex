@@ -123,7 +123,7 @@ curl -X POST http://localhost:8899/api/replay/start \
   -d '{"n":214, "seed":"demo-7", "arm":"reflex", "speed":100.0, "demo":true}'
 ```
 
-Watch it live on `/dashboard`: red FAILED counter starts at ₹2,41,000 · diagnosis chips appear · EV drawer shows four-term math on the ₹299 episode · a ₹48,000 corporate order lands in `/approvals` (**approve it as approver — human gate**) · green counter climbs past the naive twin.
+Watch it live on `/dashboard`: red FAILED counter starts at ₹2,41,000 · diagnosis chips appear · EV drawer shows four-term math on the ₹299 episode · green counter climbs past the naive twin. Approval-moment honesty note: the ₹48,000 invoice is BELOW the default ₹50,000 strict-greater threshold and link-push candidates never hit `/approvals` — demo the human gate via the control-inject/manual API approval scenario instead.
 
 ### Failure injections (all through the REAL system path)
 

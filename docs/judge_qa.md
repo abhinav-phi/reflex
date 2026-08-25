@@ -3,7 +3,7 @@
 Companion to `7.Tracker.md` 5-Minute Pitch Checklist. One-line answers; detail pointers in brackets.
 
 **Q: Why is AI needed at all — why not pure rules?**
-Rules cover ~70–88% of clean strings, but the same root cause surfaces as different messy issuer strings across banks; the LLM covers only that ambiguous tail (target ~25–30% touch rate), everything else stays deterministic. [PRD §14, ADR-003]
+Rules coverage is 89.6% on the 500-case degraded holdout (`eval/results/dx_holdout/report.json`; unit gate ≥70%), but the same root cause surfaces as different messy issuer strings across banks; the LLM covers only that ambiguous tail (target ~25–30% touch rate), everything else stays deterministic. [PRD §14, ADR-003]
 
 **Q: How do we know your numbers aren't rigged?**
 Structural anti-cheat: agent DB role physically cannot read simulator truth (`replay.sim_*`); protocol git-tagged before first results; B1 honestly tuned on dev seeds; losing cohort published. [ADR-004/007, eval/PROTOCOL.md]
@@ -33,7 +33,7 @@ Untrusted text is `<data>`-wrapped with an instruction contract, outputs schema-
 No — retries re-attempt one rail blindly. Reflex changes diagnosis→intervention→timing→channel per failure, inside hard caps/budget/quiet-hours, with per-action EV math shown and hash-chained audit.
 
 **Q: Why is there a ₹48,000 payment in a chai-subscription dataset?**
-Corporate bulk-gifting order — deliberately included to exercise the >₹50,000-class human approval gate. [Schema §13]
+Corporate bulk-gifting order — narrative color for the demo slice. Honesty note: ₹48,000 sits UNDER the default ₹50,000 strict-greater approval threshold, and link-push candidates never enter `/approvals`, so this invoice does NOT itself reach the approvals queue; the human-approval path is demonstrated via a control-inject/manual API scenario instead. [Schema §13]
 
 **Q: What's NOT implemented?**
 Real channels (simulated); the official eval HAS run ([SIMULATED], committed at `eval/results/20260824T225305Z/`) but without an LLM key — degraded==full caveat, and G5 second-run reproduction is pending; export UI wiring unverified (API shipped); live Razorpay test-mode observation (TASK-056); mandate deep-journey UI; pitch video — all tracked in Tracker/limitations. README/CONTRIBUTING/MANUAL_STEPS are in the repo root.

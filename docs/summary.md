@@ -2,7 +2,7 @@
 
 > Single-source quick reference distilled from the 8 finalized docs (PRD · TechSpec · AppFlow · Design · Schema · ImplementationPlan · Tracker · Rules). Where this summary and the detailed docs disagree, **the detailed docs win**.
 
-> **SYNC (post official run, 2026-08-24):** implementation is ~72% effective (31✅/19🟡/6❌/0⚠️ of 56 tasks). **The official pre-registered evaluation HAS EXECUTED** — protocol `eval-preregistered-v1`, N=3000 × seeds {42,1337,2025} × 8 arms, artifacts committed at **`eval/results/20260824T225305Z/`** (`results.json` + `tables.md`), ALL VALUES [SIMULATED]. Headline actuals: Reflex **31.40%** CI[28.94,33.98] · cost ₹0.27/₹100 · complaints 0.244% vs B1 21.16% / ₹0.15 / 0.567% vs B0 4.68%; incremental vs B1 **+10.24 pp** CI[+7.83,+12.62] — **G1 ≥ +15 pp gate MISSED**, G2/G3 pass. Honest record incl. degraded==full and A2 anomaly: **docs/limitations.md**. Authoritative status: PRD §22 + ImplementationPlan snapshot + Tracker.
+> **SYNC (post official run, 2026-08-24):** implementation status (recounted v1.6): **35 [x] done · 19 partial ([/] 18 + [~] 1) · 5 [ ] open — of 59 tracked tasks**. **The official pre-registered evaluation HAS EXECUTED** — protocol `eval-preregistered-v1`, N=3000 × seeds {42,1337,2025} × 8 arms, artifacts committed at **`eval/results/20260824T225305Z/`** (`results.json` + `tables.md`), ALL VALUES [SIMULATED]. Headline actuals: Reflex **31.40%** CI[28.94,33.98] · cost ₹0.27/₹100 · complaints 0.244% vs B1 21.16% / ₹0.15 / 0.567% vs B0 4.68%; incremental vs B1 **+10.24 pp** CI[+7.83,+12.62] — **G1 ≥ +15 pp gate MISSED**, G2/G3 pass. Honest record incl. degraded==full and A2 anomaly: **docs/limitations.md**. Authoritative status: PRD §22 + ImplementationPlan snapshot + Tracker.
 
 ---
 
@@ -11,13 +11,13 @@
 | Field | Value |
 |---|---|
 | **Product** | **Reflex** (renamed from working title "Recover") |
-| **One-line pitch** | A bounded, root-cause-diagnosing payment-recovery agent that wins back failed payments and failed mandates with the cheapest intervention most likely to work — measured, audited, and safe by construction. |
+| **One-line pitch** | A bounded, root-cause-diagnosing payment-recovery agent that wins back failed payments and failed mandates with the cheapest intervention most likely to work — measured, audited, and bounded by deterministic guardrails. |
 | **Track** | Razorpay AI Buildathon — **03 · AI Revenue Recovery** |
 | **Category** | Merchant-side fintech automation · agentic revenue operations |
 | **Tagline** | *Recover more, annoy less, prove everything.* |
 | **Governing principle** | **AI proposes, deterministic code disposes** — the LLM never authors an amount, link, deadline, or authorization |
 | **Integration reality** | Razorpay **test mode** `[TEST MODE]`; all channels & customer data `[SIMULATED]`; real channels `[PLANNED]` post-MVP |
-| **Status** | Design/docs complete (10 files, 56 tasks defined) · **build ~72% effective** (31✅/19🟡/6❌/0⚠️ — see §19) · **official pre-registered eval EXECUTED 2026-08-24** (`eval/results/20260824T225305Z/`, all values [SIMULATED]) |
+| **Status** | Design/docs complete (10 files, 59 tracked tasks) · **build: 35 [x] done · 19 partial ([/] 18 + [~] 1) · 5 [ ] open — of 59 tracked tasks** (see §19) · **official pre-registered eval EXECUTED 2026-08-24** (`eval/results/20260824T225305Z/`, all values [SIMULATED]) |
 
 ---
 
@@ -25,7 +25,7 @@
 
 Indian subscription/D2C merchants lose recurring revenue to payment failures (UPI, cards, e-mandates/NACH) and respond with either silence or untargeted blast messaging. Reflex sits merchant-side on top of Razorpay test-mode APIs and closes the loop: **ingest failure → diagnose root cause (rules first, LLM for the ambiguous tail) → rank interventions by expected value → enforce deterministic guardrails → execute via retries/payment links/simulated channels (WhatsApp, SMS, email, Hinglish voice) → observe outcome → adapt policy → stop or escalate**. Every decision lands in a hash-chained action ledger.
 
-Value is proven not asserted: a **pre-registered, reproducible evaluation** (3 arms × 3 seeds × 3,000 episodes, bootstrap CIs, component ablations, one honestly-reported losing cohort). Simulation design targets: **Reflex ~42% value recovery vs ~24% tuned-naive vs ~7% do-nothing, at ~₹3.0 vs ~₹6.9 cost per ₹100 recovered, with <0.5% complaint rate** — always labeled `[SIMULATED]`.
+Value is measured, not asserted — and the measured win (+10.24 pp) misses the +15 pp target: a **pre-registered, reproducible evaluation** (3 arms × 3 seeds × 3,000 episodes, bootstrap CIs, component ablations, one honestly-reported losing cohort). Simulation design targets: **Reflex ~42% value recovery vs ~24% tuned-naive vs ~7% do-nothing, at ~₹3.0 vs ~₹6.9 cost per ₹100 recovered, with <0.5% complaint rate** — always labeled `[SIMULATED]`.
 
 The strategic wedge: Razorpay's own shipped recovery tooling is publicly described at one-line depth; the buildathon bar (measured ₹ recovered, stopping rules, audit trail) is exactly the rigor gap Reflex fills. **Depth, rigor, and localization — not a new category.**
 
@@ -68,7 +68,7 @@ Failure event → dedup → episode
   → GUARD      Shield: deterministic, fail-closed, non-overridable
   → ACT        RP-TM retry/link + [SIMULATED] channels (idempotent dispatch)
   → OBSERVE    outcome window → attribution → policy credit
-  → STOP/ESCAPELATE    RECOVERED · EXPIRED(72h) · CAP · LOW_EV · CUSTOMER · APPROVAL_DECLINED · HALTED
+  → STOP/ESCALATE    RECOVERED · EXPIRED(72h) · CAP · LOW_EV · CUSTOMER · APPROVAL_DECLINED · HALTED
   → AUDIT      hash-chained ledger, every step
 ```
 
@@ -102,7 +102,7 @@ Failure event → dedup → episode
 **Happy path (sim-time):** webhook (HMAC-verified, deduped) → episode `EPS-1042` created → rules diagnosis `INSUFFICIENT_FUNDS (0.97, RULE)` → Brain enumerates 4 candidates w/ full EV breakdowns persisted → Shield PASS (7 checks in fixed order) → action scheduled to 16:00 (salary-window) → Payment Link via RP-TM (idempotency key) + WhatsApp sim `[SIMULATED]` → message: skeleton → LLM phrasing (no digits) → DB-injects ₹299/link/date → validator → delivery → customer pays 17:22 → outcome attributed to action 1 → episode `RECOVERED` → credit assignment → policy update trigger → SSE counters.
 
 **State machines:**
-- **Episode:** `WAITING_DIAGNOSIS → DIAGNOSED → {SCHEDULED | WAITING_APPROVAL} → ACTED → OBSERVING → {RECOVERED | EXPIRED | STOPPED_CAP | STOPPED_LOW_EV | STOPPED_CUSTOMER | ESCALATED | HALTED}` (terminals never reopen; re-fail ⇒ new episode)
+- **Episode:** `WAITING_DIAGNOSIS → DIAGNOSED → {SCHEDULED | WAITING_APPROVAL} → ACTED → OBSERVING → {RECOVERED | EXPIRED | STOPPED_CAP | STOPPED_LOW_EV | STOPPED_CUSTOMER | STOPPED_APPROVAL_DECLINED | ESCALATED | HALTED}` (terminals never reopen; re-fail ⇒ new episode). Per alembic 0001 `_EPISODE_TRANSITIONS`: `halted`/`expired`/`stopped_customer` are legal from EVERY non-terminal state, `recovered` from every non-terminal except `acted`, `stopped_cap` only from `observing`, and `stopped_approval_declined` from `waiting_approval`.
 - **Action:** `PROPOSED → SHIELD_PASS → SCHEDULED → DISPATCHED → DELIVERED_SIM → OBSERVED → {SUCCEEDED | FAILED}` + `BLOCKED / WAITING_APPROVAL / CANCELLED_HALT / SUPERSEDED / PARKED`
 
 **Human approval gate (blocking):** triggers = value > ₹50,000 · pause/cancel-class · complaint handoff · custom rule → 4h sim timeout ⇒ **auto-decline (fail-closed)**; approve re-runs Shield (state may have changed); decline re-ranks low-risk alternatives.
@@ -178,10 +178,10 @@ Replay engine [SIM] ──┴─► Ingestion (HMAC, dedup) ─► Redis Streams
 | Element | Design |
 |---|---|
 | **Three-schema separation** | `runtime` (agent world) · `replay` (hidden simulator truth) · `eval` (evidence). **Agent DB role cannot `SELECT` `replay.sim_*`** — eliminates "agent peeked" accusation |
-| **Synthetic universe** | 3,000 customers: LTV bands, salary days (1–7 cluster), 70% Hinglish, 3% DND; failure-code mixture (INSUFFICIENT_FUNDS 32%, AUTH_DECLINED_SOFT 14%, ISSUER_DOWNTIME 12%, MANDATE_REVOKED 9%, EXPIRED_CARD 7%, AUTH_DECLINED_HARD 6%, MANDATE_LIMIT_BREACH 5%, CUSTOMER_INITIATED 4%, INVALID_VPA 3%, RISK_HELD 2%, ambiguous tail 6%; amended per Protocol Amendment 1, tag eval-preregistered-v1.1-risk-held-amendment) with 5–8 issuer-string paraphrases per code |
+| **Synthetic universe** | 3,000 customers: LTV bands, salary days (1–7 cluster), 70% Hinglish, 3% DND; failure-code mixture (INSUFFICIENT_FUNDS 32%, AUTH_DECLINED_SOFT 14%, ISSUER_DOWNTIME 12%, MANDATE_REVOKED 9%, EXPIRED_CARD 7%, AUTH_DECLINED_HARD 6%, MANDATE_LIMIT_BREACH 5%, CUSTOMER_INITIATED 4%, INVALID_VPA 3%, RISK_HELD 2%, ambiguous tail 6%; amended per Protocol Amendment 1, tag eval-preregistered-v1.1-risk-held-amendment) with 4–7 issuer-string paraphrases per code (four codes have exactly 4) |
 | **Hidden simulator params** | Per-customer `p_respond_by_channel`, annoyance thresholds, intents (would_pay_if 55% / wait_pay 30% / never_pay 15%) — calibrated to public patterns via `data/calibration_sources.md`; **targets never hard-coded into the agent** |
-| **Seeds** | Eval {42, 1337, 2025}; demo slice `demo-7` → exactly **214 episodes / ₹2,41,000**, incl. one ₹48,000 approval case + one pre-seeded complaint trajectory |
-| **Reply corpus** | 300 labeled replies (Hinglish complaints/promises/opt-outs) + 40 prompt-injection attempts |
+| **Seeds** | Eval {42, 1337, 2025}; demo slice `demo-7` → exactly **214 episodes / ₹2,41,000**, incl. one ₹48,000 invoice case + one pre-seeded complaint trajectory |
+| **Reply corpus** | 305 labeled replies (Hinglish complaints/promises/opt-outs) + 40 prompt-injection attempts |
 | **PII** | None real: pseudonyms (`C-4821`), masked VPAs; PII scrubber + no-PII-in-prompt CI test |
 
 ---
@@ -258,7 +258,7 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 
 ## 18. Implementation Roadmap
 
-**4 working days · 3 engineers** (A: Data/Sim/AI+Eval · B: Backend/Agent+Security · C: Frontend/Design) · 52 core tasks + 4 audit-remediation tasks (053–056) = **56 total** · 10 phases:
+**4 working days · 3 engineers** (A: Data/Sim/AI+Eval · B: Backend/Agent+Security · C: Frontend/Design) · 52 core tasks + remediation tasks 053–058 = 58 total (+ TASK-059 added by the v1.6 audit = **59 tracked**) · 10 phases:
 
 | Phase | Day | Essence |
 |---|---|---|
@@ -282,13 +282,13 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 | Item | Status |
 |---|---|
 | 10 design docs | ✅ Finalized, cross-checked (v1.3 audit sync applied to all) |
-| Build | 🟡 **~72% effective** — 31✅ / 19🟡 / 6❌ / 0⚠️ of 56 tasks *(post-run update: TASK-033 executed; TASK-036 + TASK-053 closed)* |
+| Build | 🟡 **35 [x] done · 19 partial ([/] 18 + [~] 1) · 5 [ ] open — of 59 tracked tasks** *(recounted v1.6; post-run update: TASK-033 executed; TASK-036 + TASK-053 closed)* |
 | Official eval run | ✅ **EXECUTED 2026-08-24** under `eval-preregistered-v1` — artifacts `eval/results/20260824T225305Z/` [SIMULATED]; Reflex 31.40% CI[28.94,33.98], B1 21.16%, B0 4.68%, incremental +10.24 pp CI[+7.83,+12.62] *(G1 ≥+15 pp missed; G2/G3 pass)*; earlier host blockers fixed (session-scoped advisory lock, serial arms, port 15432); superseded attempts archived with README |
 | Eval protocol tag | ✅ `eval-preregistered-v1` predates all results; Amendment-1 tags cut (`eval-protocol-amendment-risk-held`, `eval-preregistered-v1.1-risk-held-amendment`) and the official RISK_HELD-amended run has executed (TASK-053 done) |
 | Razorpay subscriptions "charge now" endpoint | `[TBD — verify existence/naming]`; fallback = new order + link (retry-honesty note in PRD §22.8) |
 | LLM model choice | `[Decision Required]` (MVP assumption: GPT-4o-mini-class); **a key MUST be configured for the live demo or AI-1/AI-3 fall back to rules/templates** |
 | External claims (Razorpay Agent Studio details, competitor stats, churn figures) | `[ASSUMPTION]` — run the 20-min verification protocol **before** citing in pitch/video |
-| README / LICENSE / CONTRIBUTING | 🟡 **README.md + CONTRIBUTING.md + MANUAL_STEPS.md created (v1.3)**; LICENSE pending from owner |
+| README / LICENSE / CONTRIBUTING | ✅ **README.md + CONTRIBUTING.md + MANUAL_STEPS.md created (v1.3)**; Apache-2.0 LICENSE committed at repo root |
 | Milestones ahead | `eval-preregistered-v1` (done) · `eval-protocol-amendment-risk-held` + `eval-preregistered-v1.1-risk-held-amendment` (cut; amended run executed) → `v1.0-submission` remains |
 
 ---
@@ -326,8 +326,8 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 |---|---|---|
 | 0:00–0:30 | Red counters `FAILED ₹2,41,000 · RECOVERED ₹0 · NAIVE ~₹57,800` | Problem lands emotionally |
 | 0:30–1:00 | 3-number margin slide | Recovered ₹ ≈ 100% margin; India needed root-cause thinking |
-| 1:00–2:30 | **Live:** toggle ON → diagnosis chips → EV drawer on ₹299 episode → approve ₹48,000 case live → green counter climbs past ₹1,01,200 | "Every action shows its math and its guardrail state" |
-| ~2:10 | **Flip LLM-outage switch** → amber DEGRADED banner → stream continues, actions stamped | "It never stops, and it never lies about what it did" |
+| 1:00–2:30 | **Live:** toggle ON → diagnosis chips → EV drawer on ₹299 episode → approval gate shown via control-inject scenario (₹48k slice invoice sits under the ₹50k threshold) → green counter climbs past ₹1,01,200 | "Every action shows its math and its guardrail state" |
+| ~2:10 | **Flip LLM-outage switch** → amber DEGRADED banner → stream continues, actions stamped | "It never stops, and every step lands in the hash-chained ledger" |
 | 2:30–3:30 | Architecture + AI/not-AI table | "AI decides *what* and *when*; deterministic code decides *whether it's allowed*" |
 | 3:30–4:15 | `/results`: 3-arm table w/ CIs + ablation bars `[SIMULATED]` | Pre-registered, one command, reproducible |
 | 4:15–4:45 | Failure table + `/audit` chain verify + `/approvals` | Caps, quiet hours, kill switch, human gates |
@@ -359,15 +359,15 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 
 **The numbers it produced** (official run 2026-08-24, pre-registered, reproducible, `[SIMULATED]`; artifacts `eval/results/20260824T225305Z/`): **31.40% recovery CI[28.94,33.98] vs 21.16% tuned-naive vs 4.68% organic · ₹0.27 vs ₹0.15 per ₹100 recovered · 0.244% vs 0.567% complaints · median TTR 9.3 h (B0 organic 35.7 h)** — with ablations A1–A4 proving which component buys which points (timing ≈ +4.5 pp; EV-off anomaly at 36.85% disclosed), and a published cohort of 3,642 episodes where the system correctly refuses to act. Pre-registered targets were ~42%/~24%/~7%; actuals came in under them and the G1 ≥+15 pp incremental gate was missed (+10.24 pp) — reported honestly.
 
-**The identity:** *AI proposes, deterministic code disposes.* The LLM never touches a number; Shield never consults a model; the ledger never forgets.
+**The identity:** *AI proposes, deterministic code disposes.* The LLM never touches a number; Shield never consults a model.
 
-**Why it wins:** the only concept simultaneously top-tier on the track's literal bar (measured ₹, escalation, stopping rules, audit trail), demo impact (60-second counter + live outage survival), Razorpay fit (raises effective payment success rate on their own rails, pilot-ready), and hiring signal (pre-registration, safety-as-product, honest limitations).
+**Why it wins:** top-tier on the track's literal bar (measured ₹, escalation, stopping rules, audit trail), demo impact (60-second counter + live outage survival), Razorpay fit (raises effective payment success rate on their own rails, pilot-ready), and hiring signal (pre-registration, safety-as-product, honest limitations).
 
-**Why Razorpay cares:** their shipped recovery tooling is one line deep; Reflex is the measured, audited, India-rail-native layer above it — recovered revenue is pure merchant margin and pure platform stickiness.
+**Why Razorpay cares:** their shipped recovery tooling is one line deep `[ASSUMPTION — verify before citing]`; Reflex is the measured, audited, India-rail-native layer above it — recovered revenue is pure merchant margin and pure platform stickiness.
 
-**Biggest risk:** simulator credibility — neutralized by calibration citations, pre-registration, a tuned baseline, and published loss cases.
+**Biggest risk:** simulator credibility — mitigated by design and fail-closed tests: calibration citations, pre-registration, a tuned baseline, published loss cases.
 
-**Current state:** design complete (10 docs · 56 tasks · 4-day plan · 3 engineers); build ~72% effective; **official pre-registered eval EXECUTED** (artifacts committed, all [SIMULATED]; run executed without an `LLM_API_KEY` ⇒ reflex arm == rules-first path end-to-end — see `docs/limitations.md`). Remaining: pitch video, live Razorpay test-mode observation (TASK-056), export UI wiring verification, second-run reproduction check (G5), LICENSE.
+**Current state:** design complete (10 docs · 59 tracked tasks · 4-day plan · 3 engineers); build: 35/59 fully done, 19 partial, 5 open; **official pre-registered eval EXECUTED** (artifacts committed, all [SIMULATED]; run executed without an `LLM_API_KEY` ⇒ reflex arm == rules-first path end-to-end — see `docs/limitations.md`). Remaining: pitch video, live Razorpay test-mode observation (TASK-056), export UI wiring verification, second-run reproduction check (G5). Apache-2.0 LICENSE committed at repo root.
 
 ---
 
@@ -377,7 +377,7 @@ Plus: **losing cohort** — low-value ephemeral failures where Reflex correctly 
 |---|---|
 | Guardrails | 4 actions/episode · 2 contacts/customer/day · ₹5,000/day · 21:00–09:00 IST · >₹50,000 approval · 72h episode · 4h approval timeout |
 | Eval | N=3,000 · seeds {42, 1337, 2025} · 3 arms · 4 ablations · 1,000 bootstrap · 95% CI |
-| Demo | 214 episodes · ₹2,41,000 · seed `demo-7` · ₹48,000 approval case · ×100 speed |
+| Demo | 214 episodes · ₹2,41,000 · seed `demo-7` · ₹48,000 invoice case *(under the ₹50k default threshold — approval path shown via control-inject scenario)* · ×100 speed |
 | AI gates | dx ≥85% · validator 100% · COMPLAIN ≥95% precision AND ≥90% recall · injection corpus 100% safe |
 | Perf | rules dx <100ms · LLM dx <6s · decision <1.5s · eval <10min · reproduce <15min · SSE <2s |
 | Modes / roles | advisory·autonomous·degraded·halted / viewer·operator·approver·admin |
