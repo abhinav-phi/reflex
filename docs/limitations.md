@@ -39,8 +39,15 @@ Evaluated against the pre-registered gates (PRD G1–G6 / PROTOCOL §5) — repo
 - **G3 complaint rate < 0.5% — PASS.** Actual **0.244%** (B1 actual 0.567%).
 - **G4 zero Shield violations + 100% actions ledgered — intended PASS for this run** (0 violations with
   blocks/approvals observed across eval runs; standing verification tracked in Tracker/PRD §20 item 3).
-- **G5 same-seed reproduction within ±0.005 of committed results — NOT YET DEMONSTRATED.** One executed
-  run exists; a second identical rerun to prove bit-level reproduction tolerance is still owed.
+- **G5 same-seed reproduction within ±0.005 of committed results — **FAILS (measured 2026-08-25)**.**
+  A full 8-arm rerun of seed 42 (`scripts/g5_repro.py`, artifacts `eval/results/g5_repro_check/`) against
+  committed per-seed rates: **b0 PASSES exactly** (4.11% vs 4.11%, diff +0.005 pp) while every
+  contact-scheduling arm misses tolerance — b1 **+1.63 pp**, reflex/A1/A3/DEGRADED **−0.87 pp**, A2
+  **−0.81 pp**, A4 **−2.83 pp**. The b0 pass is the diagnostic: batch content and response streams ARE
+  seed-deterministic (FR-002 holds); the drift enters only through wall-clock `opened_at` — quiet-hours
+  windows and IST hour buckets move with real start time, changing which scheduled contacts land.
+  Fix candidate tracked as TASK-061: anchor the eval clock deterministically (opened_at derived from the
+  seed), re-verify G5 under a fresh protocol tag.
 - **G6 degraded-mode ≥ 80% of full-mode — technically met but VACUOUS; see #3.**
 
 ## 3. Degraded == full caveat
@@ -53,13 +60,31 @@ ablation. Consequently:
 - The **AI-1 live accuracy gate (≥85% diagnosis holdout)** remains open (skipped honestly without a key).
 - Any pitch claim about "what the LLM adds" must be framed as design intent, not measured result.
 
-## 4. EV-policy anomaly (honest negative result)
+## 4. EV-policy anomaly (honest negative result — now quantified)
 
 Ablation **A2 (EV policy off) scored HIGHER than full Reflex: 36.85% [34.24, 39.49] vs 31.40%**
 [28.94, 33.98] [SIMULATED] (at higher cost, ₹0.56/₹100, and higher complaints, 0.589%). Under the current
-simulator priors, the EV policy's selectivity suppresses contacts but also suppresses recovered value —
-the likely cause is miscalibrated response priors relative to simulator truth. This artifact is committed
-verbatim per PROTOCOL §6 and has **not been tuned away post hoc**. It must be investigated before any pilot.
+simulator priors, the EV policy's selectivity suppresses contacts but also suppresses recovered value.
+This artifact is committed verbatim per PROTOCOL §6 and has **not been tuned away post hoc**.
+
+**Paired episode-level rerun on seed 42** (`scripts/g5_repro.py`, identical batch & response streams,
+`eval/results/g5_repro_check/`) localizes the mechanism exactly:
+
+| Metric | Full EV | A2 EV-off |
+|---|---|---|
+| Recovery (seed 42) | 33.46% | **39.63%** (+6.17 pp) |
+| Contacts dispatched | 1,065 | 2,197 (~2×) |
+| Declined as low-EV | **1,221** | 66 |
+| Complaints | 5 | 11 |
+| Contact cost | ₹820 | ₹2,128 |
+
+Of the 1,221 episodes full-EV declined, **407 would have paid given contact (₹77,240 of value)** — for
+~₹1,300 of extra channel cost and 6 extra complaints. The missed recoveries span **all nine action-able
+codes**, not a single buggy path; only 15 episodes went the other way (₹11,184). The EV arithmetic itself
+is unit-correct (integer paise, four persisted terms) — the cause is **v1 propensity priors that are far
+too pessimistic relative to simulator truth**, amplified by the negative-EV stop rule. The remedy is
+recalibration via the already-written v2 trainer — which must be run under protocol discipline (a new
+pre-registration), never as a silent post-hoc tune of the frozen v1 numbers.
 
 ## 5. Timing optimization is real
 
@@ -102,5 +127,6 @@ of their numbers are citable (pre-amendment mixture; since-fixed CI computation)
 - Pitch video and README hero GIF (TASK-047); rehearsal drills (TASK-046).
 - Live Razorpay test-mode observation of the duplicate-link guard (TASK-056; needs `rzp_test_` keys).
 - Export UI wiring verification (API shipped and watermarked; console click-through unverified).
-- Second identical-seed reproduction run to close **G5**.
+- Deterministic eval clock to close **G5** (TASK-061 — see #2).
+- v1-prior recalibration via a protocol-disciplined v2-trainer run, then re-measure the EV-vs-fixed-priority gap (see #4).
 - Keyed LLM rerun to measure the ambiguous-tail value (see #3) and open AI-1's live accuracy gate.
