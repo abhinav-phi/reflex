@@ -9,7 +9,7 @@
 [![React 18](https://img.shields.io/badge/React-18-61DAFB?style=flat-square)](https://react.dev/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square)](https://www.postgresql.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-127%20passing-brightgreen?style=flat-square)](#evaluation--pre-registered-metrics)
+[![Tests](https://img.shields.io/badge/tests-164%20passing-brightgreen?style=flat-square)](#evaluation--pre-registered-metrics)
 
 **[Live Demo Video](#)** · **[Contributing Guide](CONTRIBUTING.md)** · **[Operator Runbook](MANUAL_STEPS.md)**
 
@@ -81,7 +81,7 @@ Six subsystems, one deployable: **Pulse** ingests and diagnoses · **Brain** sco
 
 ## Key Features
 
-- **Root-Cause Diagnosis** — Rules-first (≥70% coverage gate; 88% achieved on corpus), LLM tail for messy issuer strings, confidence-gated with safe defaults.
+- **Root-Cause Diagnosis** — Rules-first (unit gate ≥70%; rules coverage 89.6% on the 500-case degraded holdout — `eval/results/dx_holdout/report.json`), LLM tail for messy issuer strings, confidence-gated with safe defaults.
 - **Expected Value (EV) Policy** — Every intervention scored: `EV = p_recover × amount − cost − annoyance`; all four terms persisted per candidate; negative EV ⇒ STOP shown with the math.
 - **Shield Guardrails** — Deterministic, fail-closed, non-overridable: 4 actions/episode · 2 contacts/customer/day · ₹5,000/day budget · quiet hours 21:00–09:00 IST · suppression/DND list · value > ₹50,000 ⇒ human approval · kill switch (**drain measured: 25 ms for 500 scheduled actions**).
 - **Simulation Honesty Architecture** — Pre-registered protocol (git-tagged before any results), tuned (never strawman) baseline, a published losing cohort, and structural anti-cheat: the agent DB role **physically cannot read simulator ground truth** (ADR-004, verified by SQLSTATE-42501 tests).
@@ -118,7 +118,7 @@ Seeded logins (password `reflex-demo`): `admin@reflex.dev` · `approver@reflex.d
 
 ## Running the Demo & Failure Injections
 
-The demo replays a deterministic slice — **214 episodes / ₹2,41,000 failed value** (seed `demo-7`, ×100 speed) including one ₹48,000 corporate order that lands in the approval queue and one pre-seeded complaint trajectory. The naive-baseline twin runs on the same batch so counters compare arms live.
+The demo replays a deterministic slice — **214 episodes / ₹2,41,000 failed value** (seed `demo-7`, ×100 speed) including one ₹48,000 corporate order and one pre-seeded complaint trajectory. Honesty note: ₹48,000 is UNDER the default ₹50,000 strict-greater approval threshold, so the invoice does not enter `/approvals` on its own — the human-approval path is demonstrated via a control-inject/manual API scenario. The naive-baseline twin runs on the same batch so counters compare arms live.
 
 Three failures are injected through the **real system path** — never scripted fakery:
 
