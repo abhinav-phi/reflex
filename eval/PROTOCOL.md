@@ -36,6 +36,30 @@ the ordering intact and the total exact.
 definitions in §2/§5. The batch-identity rule (§1) now applies to the amended mixture: every arm
 on a given seed sees the same amended batch.
 
+### Amendment 2 — deterministic eval clock + keyed LLM tail (pre-official-run)
+
+**Status:** PRE-REGISTERED · Git tag `eval-protocol-amendment-v2-keyed-deterministic`, recorded
+while the re-run was in flight and **before** any of its artifacts were committed. The prior
+official run (`eval/results/20260824T225305Z/`) is preserved verbatim and remains the record of
+the DEGRADED (rules-only) configuration; it is superseded as the headline result by this amendment.
+
+**Changes:**
+1. **Deterministic eval clock (TASK-061):** episode `opened_at` is anchored to a fixed constant
+   (`EVAL_OPENED_AT` = 2026-01-05 04:30 UTC / 10:00 IST) instead of wall-clock `datetime.now()`.
+   Same seed ⇒ byte-identical outcomes regardless of run start time; G5 becomes satisfiable.
+   Batch content was already seed-deterministic (FR-002); only scheduling drifted.
+2. **Keyed LLM tail:** the eval pipeline previously hardcoded a noop LLM, so the "reflex" arm was
+   rules-only regardless of keys. It now uses the configured provider for the diagnosis tail
+   (rules-miss episodes only, ~6% of the mixture) with `temperature=0` for reproducibility and a
+   shared Redis diagnosis cache (same string classified once per run). Message generation stays on
+   the deterministic template path in eval (A3 remains comparable).
+3. **Reasoning-model compatibility:** diagnosis calls raise `max_tokens` to 1400 and null-safe
+   coerce reasoning-style responses.
+
+**Effect on gates:** G5 becomes measurable (and is expected to pass); G6 (degraded vs full) becomes
+meaningful for the first time; A1 (rules-only) now differs from reflex on the ambiguous tail.
+Headline numbers WILL move vs Amendment-1 artifacts — old numbers are the no-LLM record, not wrong.
+
 ---
 
 ## 1. Fixed design

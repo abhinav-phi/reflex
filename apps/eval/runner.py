@@ -32,6 +32,11 @@ log = structlog.get_logger("reflex.eval")
 
 PREREG_TAG = "eval-preregistered-v1"
 EVAL_SEEDS = [42, 1337, 2025]
+# TASK-061: deterministic eval clock. opened_at previously used datetime.now(), so
+# quiet-hours/IST-hour scheduling drifted with wall-clock start time and same-seed
+# reruns missed the G5 tolerance. A fixed anchor (Mon 05 Jan 2026, 10:00 IST —
+# outside quiet hours, salary-adjacent day) makes outcomes a pure function of seed.
+EVAL_OPENED_AT = datetime(2026, 1, 5, 4, 30, tzinfo=UTC)
 BOOTSTRAP_RESAMPLES = 1000
 RESULTS_DIR = Path(__file__).resolve().parents[2] / "eval" / "results"
 
@@ -245,7 +250,7 @@ def run_batch_arms(
 
     batch, customer_ids, merchant_id = batch_tuple
     arms = arms or [Arm.B0, Arm.B1, Arm.REFLEX]
-    opened = datetime.now(UTC).replace(microsecond=0)
+    opened = EVAL_OPENED_AT
     results: dict[str, ArmResult] = {}
 
     tasks: list[tuple[str, Arm, str | None, PipelineConfig | None]] = []
@@ -345,7 +350,7 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
             tasks.append((seed, batch_id, batch_tuple, f"reflex:{abl_name}", Arm.REFLEX, abl_name, cfg))
 
     all_results: dict[int, dict[str, ArmResult]] = {seed: {} for seed, _b, _t in prepared}
-    OPENED_AT_HOLDER: dict[str, datetime] = {"t": datetime.now(UTC).replace(microsecond=0)}
+    OPENED_AT_HOLDER: dict[str, datetime] = {"t": EVAL_OPENED_AT}
     # parallel=1 serializes arm execution: at N=3000 the arms' long transactions
     # row-contend on shared customers/suppressions and Postgres deadlocks become
     # routine; official runs therefore default to serial (see PROTOCOL.md §4).

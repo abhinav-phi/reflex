@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import sys
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -63,7 +62,9 @@ def main() -> int:
     finally:
         s.close()
 
-    opened = datetime.now(UTC).replace(microsecond=0)
+    from reflex.eval.runner import EVAL_OPENED_AT
+
+    opened = EVAL_OPENED_AT
     results: dict[str, object] = {}
     for key, arm_name, ablation, cfg_over in ARMS:
         cfg = None

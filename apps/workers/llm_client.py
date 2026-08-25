@@ -113,7 +113,14 @@ class LlmClient:
             )
             resp.raise_for_status()
             body = resp.json()
-            text = body["choices"][0]["message"]["content"]
+            msg = body["choices"][0]["message"]
+            text = msg.get("content")
+            if text is None:
+                # Reasoning-style models can spend the whole token budget before
+                # emitting `content` (finish_reason=length). Surface the trailing
+                # reasoning text instead of None so schema validators degrade
+                # gracefully instead of crashing on a NoneType.
+                text = msg.get("reasoning") or ""
             usage = body.get("usage") or {}
             cost = _estimate_cost(usage, self.settings.llm_model)
             latency_ms = int((time.perf_counter() - started) * 1000)

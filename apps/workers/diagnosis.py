@@ -141,10 +141,14 @@ def diagnose_episode(
         "input_redacted": scrub_payload(ctx),
     }
 
+    # max_tokens=900: reasoning-style models spend budget before the JSON answer;
+    # temperature=0: diagnosis must be reproducible for keyed eval runs (G5).
     result = llm.complete(
         system_prompt=system_prompt,
         user_payload=prompts.wrap_data(ctx),
         purpose_log=purpose_log,
+        max_tokens=1400,
+        temperature=0.0,
         session=session,
         episode_id=episode_id,
     )
@@ -157,6 +161,8 @@ def diagnose_episode(
                 system_prompt=system_prompt,
                 user_payload=prompts.wrap_data(ctx),
                 purpose_log=purpose_log,
+                max_tokens=900,
+                temperature=0.0,
                 session=session,
                 episode_id=episode_id,
             )

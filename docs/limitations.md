@@ -82,9 +82,14 @@ Of the 1,221 episodes full-EV declined, **407 would have paid given contact (₹
 ~₹1,300 of extra channel cost and 6 extra complaints. The missed recoveries span **all nine action-able
 codes**, not a single buggy path; only 15 episodes went the other way (₹11,184). The EV arithmetic itself
 is unit-correct (integer paise, four persisted terms) — the cause is **v1 propensity priors that are far
-too pessimistic relative to simulator truth**, amplified by the negative-EV stop rule. The remedy is
-recalibration via the already-written v2 trainer — which must be run under protocol discipline (a new
-pre-registration), never as a silent post-hoc tune of the frozen v1 numbers.
+too pessimistic relative to simulator truth**, amplified by the negative-EV stop rule.
+
+**The defense (pitch-ready):** A2 recovered more money but at **~2× the contact cost** (₹0.56 vs
+₹0.27 per ₹100) and **~2.4× the complaint rate** (0.589% vs 0.244%) — it buys recoveries by spending
+goodwill Reflex protects. Reflex's EV policy is working *as designed* — the v1 priors are simply too
+conservative about response rates. The remedy is recalibration via the already-written v2 trainer —
+which must be run under protocol discipline (a new pre-registration), never as a silent post-hoc
+tune of the frozen v1 numbers.
 
 ## 5. Timing optimization is real
 

@@ -99,6 +99,26 @@ class _NoopLlm:
         self.health = LlmHealth(None)
 
 
+def _dx_llm():  # type: ignore[no-untyped-def]
+    """Real LLM tail when LLM_API_KEY is configured (keyed eval); noop otherwise."""
+    from reflex.core.settings import get_settings
+    from reflex.workers.llm_client import LlmClient
+
+    client = LlmClient(get_settings())
+    return client if client.configured else _NoopLlm()
+
+
+def _dx_redis():  # type: ignore[no-untyped-def]
+    """Shared diagnosis cache across arms: same ambiguous string is classified
+    once, then reused — keeps keyed runs fast and cross-arm consistent."""
+    try:
+        from reflex.api.db import get_redis
+
+        return get_redis()
+    except Exception:
+        return _NullRedis()
+
+
 def run_arm(
     session: Session,
     *,
@@ -162,7 +182,9 @@ def _run_arm_inner(
             heapq.heappush(pq, TimedEvent(t, next(seq_counter), kind, payload))
 
     sim_bridge = SimulatorBridge(session, seed=batch.seed_int, batch_id=str(batch_id))
-    noop_llm = _NoopLlm()
+    noop_llm = _NoopLlm()  # message generation stays template-path in eval (A3-comparable)
+    dx_llm = _dx_llm()  # keyed LLM tail for diagnosis when LLM_API_KEY is configured
+    dx_redis = _dx_redis()  # shared diagnosis cache
 
     truth_by_idx = {c.idx: c for c in batch.customers}
     result = ArmResult()
@@ -277,12 +299,12 @@ def _run_arm_inner(
                 for row in _episode_actions(session, res.episode_id):
                     push(row["scheduled_for"], "act", {"k": k, "action_id": str(row["id"])})
                 continue
-            _plan_reflex(session, build_ctx(k, res.episode_id), cfg, now, push, k, result, waits)
+            _plan_reflex(session, build_ctx(k, res.episode_id), cfg, now, push, k, result, waits, dx_llm=dx_llm, dx_redis=dx_redis)
 
         elif kind == "replan":
             if st is None:
                 continue
-            _plan_reflex(session, build_ctx(k, st["episode_id"]), cfg, now, push, k, result, waits)
+            _plan_reflex(session, build_ctx(k, st["episode_id"]), cfg, now, push, k, result, waits, dx_llm=dx_llm, dx_redis=dx_redis)
 
         elif kind == "act":
             if st is None:
@@ -428,13 +450,15 @@ def _plan_reflex(
     k: int,
     result: ArmResult,
     waits: dict[int, int],
+    dx_llm=None,  # type: ignore[no-untyped-def]
+    dx_redis=None,  # type: ignore[no-untyped-def]
 ) -> None:
     # consecutive WAIT bookkeeping: after two deferrals, waiting is excluded
     waits[k] = waits.get(k, 0)
     dx = diagnose_episode(
         session,
-        _NoopLlm(),
-        _NullRedis(),
+        dx_llm if dx_llm is not None else _NoopLlm(),
+        dx_redis if dx_redis is not None else _NullRedis(),
         episode_id=ctx.episode_id,
         code_raw=ctx.code_raw,
         rail=ctx.rail,
