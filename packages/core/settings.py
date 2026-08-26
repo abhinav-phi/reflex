@@ -1,7 +1,9 @@
 """Settings via pydantic-settings (Rules §15.1: config via env only)."""
 
+import os
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 IST = "Asia/Kolkata"
@@ -37,6 +39,19 @@ class Settings(BaseSettings):
     timezone: str = IST
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
+
+    @model_validator(mode="after")
+    def _cloud_db_fallback(self):  # type: ignore[no-untyped-def]
+        # Antideploy cloud only auto-provides DATABASE_URL (single) - reuse it for ADMIN/EVAL if they are still localhost defaults
+        # This keeps local compose (15432) working but makes cloud single-DB deploys pass alembic upgrade
+        if "DATABASE_URL" in os.environ and os.environ["DATABASE_URL"]:
+            cloud_url = os.environ["DATABASE_URL"]
+            # If ADMIN/EVAL were not explicitly set in env, inherit from DATABASE_URL
+            if "DATABASE_URL_ADMIN" not in os.environ:
+                object.__setattr__(self, "database_url_admin", cloud_url)  # type: ignore[attr-defined]
+            if "DATABASE_URL_EVAL" not in os.environ:
+                object.__setattr__(self, "database_url_eval", cloud_url)  # type: ignore[attr-defined]
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -13,7 +13,8 @@ config = context.config
 
 if not config.get_main_option("sqlalchemy.url"):
     # Host port 15432 (compose maps 15432->5432); see docker-compose.yml + MANUAL_STEPS.md §10
-    admin_url = os.environ.get("DATABASE_URL_ADMIN", "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex")
+    # Antideploy cloud only provides DATABASE_URL (single), so fallback chain: ADMIN -> DATABASE_URL -> localhost default
+    admin_url = os.environ.get("DATABASE_URL_ADMIN") or os.environ.get("DATABASE_URL") or "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex"
     config.set_main_option("sqlalchemy.url", admin_url)
 
 target_metadata = None  # raw-SQL baseline; forward-only during buildathon (Schema §14)
