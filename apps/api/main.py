@@ -86,8 +86,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                         _s.execute(_sa_text('CREATE TABLE IF NOT EXISTS "runtime.users" (id TEXT PRIMARY KEY, email TEXT UNIQUE, role TEXT, password_hash TEXT)'))
                         _s.execute(_sa_text("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, role TEXT, password_hash TEXT)"))
                         # Seed minimal users for SQLite
-                        from reflex.api.security import hash_password as _hp
                         import uuid as _uuid
+
+                        from reflex.api.security import hash_password as _hp
 
                         for _email, _role in [("admin@reflex.dev","admin"),("approver@reflex.dev","approver"),("operator@reflex.dev","operator"),("viewer@reflex.dev","viewer")]:
                             # Check both possible tables for SQLite
@@ -111,11 +112,47 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                         _s.commit()
                         log.info("cloud_sqlite_minimal_done")
                     else:
-                        # Postgres - try normal seed (creates via runtime.users)
-                        from reflex.eval.seed import main as _seed_main2
+                        # Postgres - run migrations first, then seed. Antideploy skips its own
+                        # migrate step when it builds the Node project, so self-heal here.
+                        import traceback as _tb
+                        from pathlib import Path as _Path
 
-                        _seed_main2()
-                        log.info("cloud_autoseed_table_missing_done")
+                        # rollback the failed SELECT so session is reusable / closable cleanly
+                        try:
+                            _s.rollback()
+                        except Exception:
+                            pass
+                        try:
+                            from alembic.config import Config as _AlembicConfig
+
+                            from alembic import command as _alembic_cmd
+
+                            _root = _Path(__file__).resolve().parents[2]
+                            _acfg = _AlembicConfig(str(_root / "alembic.ini"))
+                            _acfg.set_main_option("script_location", str(_root / "alembic"))
+                            import os as _os
+
+                            _db = _os.environ.get("DATABASE_URL") or _os.environ.get("DATABASE_URL_ADMIN") or ""
+                            if _db:
+                                if _db.startswith("postgresql+psycopg://"):
+                                    _db = _db.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+                                elif _db.startswith("postgresql://"):
+                                    _db = _db.replace("postgresql://", "postgresql+psycopg2://", 1)
+                                elif _db.startswith("postgres://"):
+                                    _db = _db.replace("postgres://", "postgresql+psycopg2://", 1)
+                                _acfg.set_main_option("sqlalchemy.url", _db)
+                            _alembic_cmd.upgrade(_acfg, "head")
+                            log.info("cloud_autoseed_migrate_done")
+                        except Exception as _me:
+                            log.warning("cloud_autoseed_migrate_fail", error=str(_me), trace=_tb.format_exc()[:2000])
+
+                        try:
+                            from reflex.eval.seed import main as _seed_main2
+
+                            _seed_main2()
+                            log.info("cloud_autoseed_table_missing_done")
+                        except Exception as _se2:
+                            log.warning("cloud_autoseed_seed_fail", error=str(_se2), trace=_tb.format_exc()[:2000])
                 except Exception as _e2:
                     log.warning("cloud_autoseed_table_missing_fail", error=str(_e2), orig=str(_e))
             else:
@@ -275,9 +312,8 @@ def debug_login_check() -> dict:
     import traceback
 
     try:
-        from sqlalchemy import text as _t
-
         from reflex.api.db import agent_sessionmaker as _mk
+        from sqlalchemy import text as _t
 
         s = _mk()()
         try:
@@ -287,6 +323,61 @@ def debug_login_check() -> dict:
             s.close()
     except Exception as e:
         return {"ok": False, "error": str(e), "trace": traceback.format_exc()[:2000]}
+
+
+@app.post("/debug/migrate")
+@app.get("/debug/migrate")
+def debug_migrate() -> dict:
+    import traceback
+
+    try:
+        from pathlib import Path as _Path
+
+        from alembic.config import Config as _AlembicConfig
+
+        from alembic import command as _alembic_cmd
+
+        _root = _Path(__file__).resolve().parents[2]
+        _acfg = _AlembicConfig(str(_root / "alembic.ini"))
+        _acfg.set_main_option("script_location", str(_root / "alembic"))
+        # Use cloud DB URL explicitly (Neon) — prefer DATABASE_URL (the one that already succeeds for SELECTs)
+        import os
+
+        _db = os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_URL_ADMIN") or ""
+        if _db:
+            # Force psycopg2 driver — the live app connects via psycopg2 (see debug/login_check psycopg2 success
+            # vs psycopg OperationalError). Normalize any postgres/postgresql/+psycopg URL to +psycopg2.
+            if _db.startswith("postgresql+psycopg://"):
+                _db = _db.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+            elif _db.startswith("postgresql://"):
+                _db = _db.replace("postgresql://", "postgresql+psycopg2://", 1)
+            elif _db.startswith("postgres://"):
+                _db = _db.replace("postgres://", "postgresql+psycopg2://", 1)
+            _acfg.set_main_option("sqlalchemy.url", _db)
+        _alembic_cmd.upgrade(_acfg, "head")
+        # verify
+        from reflex.api.db import agent_sessionmaker as _mk2
+        from sqlalchemy import text as _t2
+
+        s = _mk2()()
+        try:
+            cnt = s.execute(_t2("SELECT COUNT(*) FROM runtime.users")).scalar()
+        finally:
+            s.close()
+        # seed after migrate
+        try:
+            from reflex.eval.seed import main as _seed_m
+
+            _seed_m()
+            seeded = True
+        except Exception as _se:
+            seeded = False
+            seed_err = str(_se)
+            seed_trace = traceback.format_exc()[:2000]
+            return {"ok": True, "migrated": True, "users_count": cnt, "seeded": seeded, "seed_error": seed_err, "seed_trace": seed_trace}
+        return {"ok": True, "migrated": True, "users_count": cnt, "seeded": seeded}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "trace": traceback.format_exc()[:4000]}
 
 
 @app.get("/metrics")

@@ -10,6 +10,8 @@ Implements `5. Schema.md` exactly:
 Down-doc (forward-only, Schema §14): to roll back manually drop schemas in reverse
 dependency order: eval, replay, runtime (roles persist harmlessly).
 """
+import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0001_baseline"
@@ -128,10 +130,19 @@ $$ LANGUAGE plpgsql;
 
 def upgrade() -> None:
     # Idempotent for Antideploy cloud reruns - if already migrated, succeed immediately
+    # Use to_regclass / information_schema to avoid aborting the transaction (SELECT FROM
+    # missing table puts the transaction in FAILED state and blocks all subsequent DDL).
     try:
-        op.execute("SELECT 1 FROM runtime.users LIMIT 1")
-        return  # already at head, don't try to recreate
+        conn = op.get_bind()
+        exists = conn.execute(sa.text("SELECT to_regclass('runtime.users')")).scalar()
+        if exists is not None:
+            return  # already at head, don't try to recreate
     except Exception:
+        # If the check itself fails, continue to creation; ensure transaction is not aborted
+        try:
+            conn.rollback()  # type: ignore[union-attr]
+        except Exception:
+            pass
         pass
     # Idempotent for Antideploy cloud reruns - don't fail if already at head
     try:
@@ -144,6 +155,8 @@ def upgrade() -> None:
                 op.execute(f"CREATE TYPE runtime.{name} AS ENUM ({vals})")
             except Exception:
                 pass  # already exists on rerun
+    except Exception:
+        pass
 
     # ---- runtime core -------------------------------------------------------
     op.execute("""
@@ -428,16 +441,20 @@ def upgrade() -> None:
     )
 
     # ---- roles & grants (Schema §9 / ADR-004 / Rules §5) ---------------------
-    # Cloud (Neon) has no superuser - wrap role/grants in exception-safe blocks so migrate doesn't fail on Antideploy
+    # Cloud (Neon) has no superuser - use SAVEPOINT per statement so a failure doesn't abort
+    # the outer migration transaction (which would make context.begin_transaction() fail on commit
+    # with the same error). Each failure is swallowed; the app works with the single Neon user.
+    _conn = op.get_bind()
     for _role_sql in [
-        _ensure_role("reflex_agent", "agent_dev_pw"),
-        _ensure_role("reflex_eval", "eval_dev_pw"),
-        _ensure_role("reflex_admin", "admin_dev_pw"),
+        _ensure_role("reflex_agent", "R3flex_Agent_Pw_9x!2_Secure2026"),
+        _ensure_role("reflex_eval", "R3flex_Eval_Pw_7y!4_Secure2026"),
+        _ensure_role("reflex_admin", "R3flex_Admin_Pw_8z!5_Secure2026"),
     ]:
         try:
-            op.execute(_role_sql)
+            with _conn.begin_nested():
+                _conn.execute(sa.text(_role_sql))
         except Exception:
-            pass  # Neon/managed DB: not superuser, skip role creation - app still works with single DB user
+            pass  # Neon/managed DB: not superuser or password policy, skip
     for _grant_sql in [
         "GRANT USAGE ON SCHEMA runtime TO reflex_agent",
         "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA runtime TO reflex_agent",
@@ -447,7 +464,8 @@ def upgrade() -> None:
         "REVOKE ALL ON SCHEMA replay, eval FROM reflex_agent",
     ]:
         try:
-            op.execute(_grant_sql)
+            with _conn.begin_nested():
+                _conn.execute(sa.text(_grant_sql))
         except Exception:
             pass
     for schema in ("runtime", "replay", "eval"):
@@ -457,7 +475,8 @@ def upgrade() -> None:
             f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO reflex_eval",
         ]:
             try:
-                op.execute(_sql)
+                with _conn.begin_nested():
+                    _conn.execute(sa.text(_sql))
             except Exception:
                 pass
     for _sql in [
@@ -465,7 +484,8 @@ def upgrade() -> None:
         "ALTER DEFAULT PRIVILEGES IN SCHEMA runtime REVOKE ALL ON TABLES FROM reflex_agent",
     ]:
         try:
-            op.execute(_sql)
+            with _conn.begin_nested():
+                _conn.execute(sa.text(_sql))
         except Exception:
             pass  # no-op guard; explicit ledger grants above stay authoritative
 
