@@ -169,10 +169,17 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 app = FastAPI(title="Reflex", version="1.0.0", lifespan=lifespan)
 
+# CORS: explicit origins from env (Settings.cors_origin_list) + regex for antideploy subdomains + localhost
+try:
+    from reflex.core.settings import get_settings as _gs_cors
+
+    _cors_origins = _gs_cors().cors_origin_list
+except Exception:
+    _cors_origins = []
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],  # no wildcard; explicit origins only (Rules §1.6)
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):(5173|8080)$",
+    allow_origins=_cors_origins,
+    allow_origin_regex=r"^https://.*\.antideploy\.com$|^http://(localhost|127\.0\.0\.1):(5173|8080)$",
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Razorpay-Signature"],
