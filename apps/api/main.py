@@ -267,7 +267,7 @@ def debug_env() -> dict:
     # hide password, show host only
     host = url.split("@")[-1] if "@" in url else url
     host = host.split("/")[0] if "/" in host else host
-    return {"db_host": host, "db_url_set": bool(url), "redis_set": bool(os.environ.get("REDIS_URL"))}
+    return {"db_host": host, "db_url_set": bool(url), "db_url_len": len(url), "redis_set": bool(os.environ.get("REDIS_URL")), "all_env": [k for k in os.environ if "DATABASE" in k or "REDIS" in k or "POSTGRES" in k]}
 
 
 @app.get("/debug/login_check")
