@@ -180,6 +180,10 @@ app.add_middleware(IdempotencyMiddleware)
 # ---- health ------------------------------------------------------------------------
 
 
+@app.get("/")
+def root() -> dict:
+    return {"status": "ok", "service": "reflex-api", "docs": "/docs", "health": "/healthz"}
+
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok", "service": "reflex-api"}
