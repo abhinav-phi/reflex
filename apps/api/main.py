@@ -234,6 +234,25 @@ def debug_env() -> dict:
     return {"db_host": host, "db_url_set": bool(url), "redis_set": bool(os.environ.get("REDIS_URL"))}
 
 
+@app.get("/debug/login_check")
+def debug_login_check() -> dict:
+    import traceback
+
+    try:
+        from sqlalchemy import text as _t
+
+        from reflex.api.db import agent_sessionmaker as _mk
+
+        s = _mk()()
+        try:
+            cnt = s.execute(_t("SELECT COUNT(*) FROM runtime.users")).scalar()  # type: ignore[attr-defined]
+            return {"ok": True, "users_count": cnt}
+        finally:
+            s.close()
+    except Exception as e:
+        return {"ok": False, "error": str(e), "trace": traceback.format_exc()[:2000]}
+
+
 @app.get("/metrics")
 def metrics_snapshot() -> dict:
     r: object = getattr(app.state, "redis", None)
