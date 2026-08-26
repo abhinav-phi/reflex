@@ -12,19 +12,20 @@ from sqlalchemy.orm import Session, sessionmaker
 
 @lru_cache
 def agent_engine():  # type: ignore[no-untyped-def]
-    # Antideploy Node build has no postgres:5432 host - fallback to SQLite for cloud demo if Postgres not resolvable
     url = get_settings().database_url
-    # If host is postgres/localhost and we are on Antideploy (no such host), try SQLite fallback for demo
-    if "postgres" in url or "localhost:15432" in url:
-        try:
-            # Try to resolve host quickly, if fails use SQLite
-            import socket
+    # Only fallback to SQLite if host is exactly postgres/localhost (local compose) and not resolvable on Antideploy Node build
+    # Don't fallback for Neon/cloud hosts (e.g., ep-...neon.tech) which contain postgres in scheme but host is resolvable
+    if "sqlite" in url:
+        return create_engine(url, connect_args={"check_same_thread": False})
+    try:
+        import socket
 
-            host = url.split("@")[-1].split("/")[0].split(":")[0] if "@" in url else "postgres"
+        host = url.split("@")[-1].split("/")[0].split(":")[0] if "@" in url else ""
+        # Only check local docker hosts, not cloud hosts
+        if host in ("postgres", "localhost", "127.0.0.1"):
             socket.getaddrinfo(host, 5432, timeout=1)
-        except Exception:
-            # Use SQLite fallback for Antideploy Node builds where Postgres service not linked
-            return create_engine("sqlite:///./reflex-cloud.db", connect_args={"check_same_thread": False})
+    except Exception:
+        return create_engine("sqlite:///./reflex-cloud.db", connect_args={"check_same_thread": False})
     return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
 
 
