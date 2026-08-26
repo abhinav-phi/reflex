@@ -13,16 +13,23 @@ from sqlalchemy.orm import Session, sessionmaker
 @lru_cache
 def agent_engine():  # type: ignore[no-untyped-def]
     url = get_settings().database_url
-    # Only fallback to SQLite if host is exactly postgres/localhost (local compose) and not resolvable on Antideploy Node build
-    # Don't fallback for Neon/cloud hosts (e.g., ep-...neon.tech) which contain postgres in scheme but host is resolvable
+    # Normalize to psycopg2 driver for CI and cloud (both have psycopg2-binary, psycopg scheme may not be available)
+    if url.startswith("postgresql+psycopg://"):
+        url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    # Only fallback to SQLite for Antideploy Node builds where postgres host is not resolvable;
+    # don't fallback for localhost in CI (CI's postgres is on localhost and should be used)
     if "sqlite" in url:
         return create_engine(url, connect_args={"check_same_thread": False})
     try:
         import socket
 
         host = url.split("@")[-1].split("/")[0].split(":")[0] if "@" in url else ""
-        # Only check local docker hosts, not cloud hosts
-        if host in ("postgres", "localhost", "127.0.0.1"):
+        # Only check the Docker Compose service name `postgres`, not localhost (CI uses localhost)
+        if host == "postgres":
             socket.getaddrinfo(host, 5432, timeout=1)
     except Exception:
         return create_engine("sqlite:///./reflex-cloud.db", connect_args={"check_same_thread": False})
@@ -33,8 +40,15 @@ def agent_engine():  # type: ignore[no-untyped-def]
 def eval_engine():  # type: ignore[no-untyped-def]
     # Proof runs up to 8 parallel arm-transactions on this engine; each holds
     # one connection for the whole arm — the pool must cover the worker count.
+    url = get_settings().database_url_eval
+    if url.startswith("postgresql+psycopg://"):
+        url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
     return create_engine(
-        get_settings().database_url_eval,
+        url,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=6,
@@ -44,7 +58,14 @@ def eval_engine():  # type: ignore[no-untyped-def]
 
 @lru_cache
 def admin_engine():  # type: ignore[no-untyped-def]
-    return create_engine(get_settings().database_url_admin, pool_pre_ping=True)
+    url = get_settings().database_url_admin
+    if url.startswith("postgresql+psycopg://"):
+        url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    return create_engine(url, pool_pre_ping=True)
 
 
 @lru_cache
