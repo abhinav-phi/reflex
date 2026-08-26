@@ -1,0 +1,33 @@
+# Build-context exclusions — keep images small and secret-free.
+# NOTE: `*.md` is deliberately NOT excluded — pyproject.toml references
+# README.md for the distribution metadata; excluding it breaks `pip install -e .`.
+
+.git
+.gitignore
+.venv
+venv
+env
+node_modules
+**/node_modules
+**/__pycache__
+*.py[cod]
+**/__pycache__/
+.env
+.env.*
+!.env.example
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.htmlcov
+htmlcov
+coverage
+apps/web/coverage
+apps/web/dist
+apps/web/tsconfig.tsbuildinfo
+*.log
+.github
+.idea
+.vscode
+playwright-report
+test-results
+I.java
