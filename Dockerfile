@@ -6,6 +6,7 @@ ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 COPY pyproject.toml README.md ./
 COPY reflex ./reflex
 COPY packages ./packages
+COPY data ./data
 COPY apps/api ./apps/api
 COPY apps/workers ./apps/workers
 COPY apps/eval ./apps/eval
