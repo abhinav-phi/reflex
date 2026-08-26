@@ -1,6 +1,6 @@
 # Reflex — AI Revenue Recovery Agent
 
-![Reflex — AI that recovers failed payments.](banner.png)
+![Reflex — AI that recovers failed payments.](assets/banner.png)
 
 > Recover more, annoy less, prove everything. A bounded, root-cause-diagnosing payment-recovery agent built for the **Razorpay AI Buildathon — Track 03 (AI Revenue Recovery)**.
 
