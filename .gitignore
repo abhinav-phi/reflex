@@ -48,3 +48,6 @@ playwright-report/
 # Local-only strays (kept on disk, never published)
 /I.java
 *.tsbuildinfo
+
+# Eval run logs (local)
+/eval_run_*.log

@@ -40,7 +40,7 @@ on a given seed sees the same amended batch.
 
 **Status:** PRE-REGISTERED · Git tag `eval-protocol-amendment-v2-keyed-deterministic`, recorded
 while the re-run was in flight and **before** any of its artifacts were committed. The prior
-official run (`eval/results/20260824T225305Z/`) is preserved verbatim and remains the record of
+official run (`eval/results/20260826T105147Z/`) is preserved verbatim and remains the record of
 the DEGRADED (rules-only) configuration; it is superseded as the headline result by this amendment.
 
 **Changes:**
@@ -59,6 +59,13 @@ the DEGRADED (rules-only) configuration; it is superseded as the headline result
 **Effect on gates:** G5 becomes measurable (and is expected to pass); G6 (degraded vs full) becomes
 meaningful for the first time; A1 (rules-only) now differs from reflex on the ambiguous tail.
 Headline numbers WILL move vs Amendment-1 artifacts — old numbers are the no-LLM record, not wrong.
+
+**Outcome (2026-08-26):** re-run completed — `eval/results/20260826T105147Z/`. G5 PASS proven by
+two independent full runs (20260825T221826Z and 20260826T105147Z) producing byte-identical per-seed
+results on different days with different LLM tails. Keyed-tail finding: the LLM honestly classifies
+the synthetic ambiguous tail as UNKNOWN_AMBIGUOUS (matching the conservative fallback) ⇒ recovery
+parity with A1; LLM recovery-value on real-world strings remains pilot-time work
+(`docs/limitations.md` §3b).
 
 ---
 

@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 OUT_DIR = Path(__file__).resolve().parents[1] / "eval" / "results" / "g5_repro_check"
-COMMITTED = Path(__file__).resolve().parents[1] / "eval" / "results" / "20260824T225305Z" / "results.json"
+COMMITTED = Path(__file__).resolve().parents[1] / "eval" / "results" / "20260825T221826Z" / "results.json"
 SEED = 42
 N = 3000
 TOL = 0.005  # PROTOCOL G5: ±0.005 absolute on recovery_rate
