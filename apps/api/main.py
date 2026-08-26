@@ -132,16 +132,32 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                             _acfg.set_main_option("script_location", str(_root / "alembic"))
                             import os as _os
 
-                            _db = _os.environ.get("DATABASE_URL") or _os.environ.get("DATABASE_URL_ADMIN") or ""
-                            if _db:
-                                if _db.startswith("postgresql+psycopg://"):
-                                    _db = _db.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
-                                elif _db.startswith("postgresql://"):
-                                    _db = _db.replace("postgresql://", "postgresql+psycopg2://", 1)
-                                elif _db.startswith("postgres://"):
-                                    _db = _db.replace("postgres://", "postgresql+psycopg2://", 1)
-                                _acfg.set_main_option("sqlalchemy.url", _db)
-                            _alembic_cmd.upgrade(_acfg, "head")
+                            def _norm(u: str) -> str:
+                                if u.startswith("postgresql+psycopg://"):
+                                    return u.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+                                if u.startswith("postgresql://"):
+                                    return u.replace("postgresql://", "postgresql+psycopg2://", 1)
+                                if u.startswith("postgres://"):
+                                    return u.replace("postgres://", "postgresql+psycopg2://", 1)
+                                return u
+
+                            _cands = [_os.environ.get("DATABASE_URL_ADMIN"), _os.environ.get("DATABASE_URL")]
+                            _cands = [_norm(c) for c in _cands if c]
+                            _ok = False
+                            _last: Exception | None = None
+                            for _db in _cands or [""]:
+                                if _db:
+                                    _acfg.set_main_option("sqlalchemy.url", _db)
+                                try:
+                                    _alembic_cmd.upgrade(_acfg, "head")
+                                    _ok = True
+                                    break
+                                except Exception as _me:  # type: ignore[no-redef]
+                                    _last = _me
+                                    # try next candidate (ADMIN -> DATABASE_URL) for cloud fallback
+                                    continue
+                            if not _ok and _last is not None:
+                                raise _last
                             log.info("cloud_autoseed_migrate_done")
                         except Exception as _me:
                             log.warning("cloud_autoseed_migrate_fail", error=str(_me), trace=_tb.format_exc()[:2000])
@@ -347,21 +363,33 @@ def debug_migrate() -> dict:
         _root = _Path(__file__).resolve().parents[2]
         _acfg = _AlembicConfig(str(_root / "alembic.ini"))
         _acfg.set_main_option("script_location", str(_root / "alembic"))
-        # Use cloud DB URL explicitly (Neon) — prefer DATABASE_URL (the one that already succeeds for SELECTs)
         import os
 
-        _db = os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_URL_ADMIN") or ""
-        if _db:
-            # Force psycopg2 driver — the live app connects via psycopg2 (see debug/login_check psycopg2 success
-            # vs psycopg OperationalError). Normalize any postgres/postgresql/+psycopg URL to +psycopg2.
-            if _db.startswith("postgresql+psycopg://"):
-                _db = _db.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
-            elif _db.startswith("postgresql://"):
-                _db = _db.replace("postgresql://", "postgresql+psycopg2://", 1)
-            elif _db.startswith("postgres://"):
-                _db = _db.replace("postgres://", "postgresql+psycopg2://", 1)
-            _acfg.set_main_option("sqlalchemy.url", _db)
-        _alembic_cmd.upgrade(_acfg, "head")
+        def _norm2(u: str) -> str:
+            if u.startswith("postgresql+psycopg://"):
+                return u.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+            if u.startswith("postgresql://"):
+                return u.replace("postgresql://", "postgresql+psycopg2://", 1)
+            if u.startswith("postgres://"):
+                return u.replace("postgres://", "postgresql+psycopg2://", 1)
+            return u
+
+        _cands2 = [os.environ.get("DATABASE_URL_ADMIN"), os.environ.get("DATABASE_URL")]
+        _cands2 = [_norm2(c) for c in _cands2 if c]
+        _done = False
+        _last2: Exception | None = None
+        for _db in _cands2 or [""]:
+            if _db:
+                _acfg.set_main_option("sqlalchemy.url", _db)
+            try:
+                _alembic_cmd.upgrade(_acfg, "head")
+                _done = True
+                break
+            except Exception as _e:  # type: ignore[no-redef]
+                _last2 = _e
+                continue
+        if not _done and _last2 is not None:
+            raise _last2
         # verify
         from reflex.api.db import agent_sessionmaker as _mk2
         from sqlalchemy import text as _t2
