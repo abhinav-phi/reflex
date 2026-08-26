@@ -85,15 +85,33 @@ def ensure_reference_data(session: Session, verbose: bool = False) -> None:
 
 
 def main() -> int:  # console entrypoint: reflex-seed
-    from reflex.api.db import agent_sessionmaker
+    from reflex.api.db import admin_engine, agent_sessionmaker
+    from sqlalchemy import text as _t
 
-    s = agent_sessionmaker()()
-    try:
-        ensure_reference_data(s, verbose=True)
-        print("seed complete (idempotent)")
-        return 0
-    finally:
-        s.close()
+    # Try agent first (normal), fallback to admin for CI where agent role may not yet be usable
+    # or where agent_engine fell back to sqlite. Also handle the case where runtime.users
+    # doesn't exist (migrate not yet run) by trying admin.
+    last_exc: Exception | None = None
+    for mk in (agent_sessionmaker, lambda: __import__("sqlalchemy.orm", fromlist=["sessionmaker"]).sessionmaker(bind=admin_engine(), expire_on_commit=False)):
+        try:
+            s = mk()()  # type: ignore[operator]
+            try:
+                # quick probe: does runtime.users exist?
+                s.execute(_t("SELECT 1 FROM runtime.users LIMIT 1"))
+                s.rollback()
+                ensure_reference_data(s, verbose=True)
+                print("seed complete (idempotent)")
+                return 0
+            finally:
+                s.close()
+        except Exception as e:
+            last_exc = e
+            # try next maker (agent -> admin)
+            continue
+    # if both failed, raise the last error for CI visibility
+    if last_exc:
+        raise last_exc
+    return 1
 
 
 if __name__ == "__main__":
