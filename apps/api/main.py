@@ -59,8 +59,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.started_at = datetime.now(UTC)
     # Auto-seed for cloud deploys (Antideploy) - if users table empty, seed it so login works without manual console
     try:
-        from sqlalchemy import text as _sa_text
         from reflex.api.db import agent_sessionmaker as _agent_mk
+        from sqlalchemy import text as _sa_text
 
         _s = _agent_mk()()
         try:
