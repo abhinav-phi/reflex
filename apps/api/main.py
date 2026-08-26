@@ -187,7 +187,7 @@ def healthz() -> dict:
 
 @app.get("/metrics")
 def metrics_snapshot() -> dict:
-    r: object = app.state.redis
+    r: object = getattr(app.state, "redis", None)
     keys = [
         "events_ingested", "duplicates_collapsed", "episodes_created",
         "dx_rule", "dx_llm", "shield_pass", "shield_block", "shield_approval",
@@ -195,7 +195,10 @@ def metrics_snapshot() -> dict:
     ]
     out = {}
     for k in keys:
-        v = r.get(f"reflex:ctr:{k}") if hasattr(r, "get") else None
+        try:
+            v = r.get(f"reflex:ctr:{k}") if r is not None and hasattr(r, "get") else None
+        except Exception:
+            v = None  # Redis not reachable on Antideploy single-DB deploys - return zeros instead of 500
         out[k] = int(v) if v else 0
     return out
 
