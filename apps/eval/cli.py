@@ -11,6 +11,10 @@ def main() -> int:
     parser.add_argument("command", choices=["smoke", "run"])
     parser.add_argument("--n", type=int, default=None, help="override episodes per batch")
     parser.add_argument(
+        "--seeds", type=str, default=None,
+        help="comma-separated seed list override, e.g. --seeds 42 (chunked/resumable official runs)",
+    )
+    parser.add_argument(
         "--parallel", type=int, default=None,
         help="override concurrent arm workers (official runs default to 1: serial arms avoid cross-arm deadlocks)",
     )
@@ -23,6 +27,8 @@ def main() -> int:
         override["n"] = args.n
     if args.parallel:
         override["parallel"] = args.parallel
+    if args.seeds:
+        override["seeds"] = [int(x) for x in args.seeds.split(",")]
 
     if args.command == "smoke":
         summary = run_protocol_sync(quick=True, config_override=override or None)

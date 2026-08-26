@@ -325,7 +325,7 @@ def run_protocol_sync(config_override: dict | None = None, quick: bool = False) 
         raise RuntimeError(f"protocol tag {PREREG_TAG} missing — refusing official run")
     from reflex.api.db import eval_sessionmaker
 
-    seeds = EVAL_SEEDS if not quick else [42]
+    seeds = [int(x) for x in (config_override or {}).get("seeds", EVAL_SEEDS if not quick else [42])]
     n = 3000 if not quick else 120
     if config_override:
         n = int(config_override.get("n", n))
