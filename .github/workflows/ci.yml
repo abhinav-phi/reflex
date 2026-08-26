@@ -41,19 +41,10 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: Lint
         run: ruff check packages apps tests scripts
-      - name: Debug DB
-        run: |
-          python -c "from reflex.core.settings import get_settings; s=get_settings(); print('ADMIN', s.database_url_admin[:60]); print('URL', s.database_url[:60]); print('EVAL', s.database_url_eval[:60])"
-          python -c "import socket; print(socket.getaddrinfo('localhost',5432))"
-          PGPASSWORD=reflex_dev_pg psql -h localhost -U postgres -d reflex -c "SELECT 1" || echo "psql failed"
       - name: Migrate + seed
         run: |
-          set -x
-          python -m alembic upgrade head -v
-          echo "alembic done code $?"
-          python -c "from sqlalchemy import create_engine, text; from reflex.core.settings import get_settings; e=create_engine(get_settings().database_url_admin); print('check users', list(e.execute(text(\"SELECT to_regclass('runtime.users')\"))))"
-          python -m reflex.eval.seed -v || python -m reflex.eval.seed
-          echo "seed done code $?"
+          python -m alembic upgrade head
+          python -m reflex.eval.seed
       - name: Tests (unit, api, integration, security, ai-structural, load)
         run: pytest tests -m "not e2e and not ai_live"
 
