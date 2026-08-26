@@ -14,9 +14,8 @@ config = context.config
 
 if not config.get_main_option("sqlalchemy.url"):
     # Host port 15432 (compose maps 15432->5432); see docker-compose.yml + MANUAL_STEPS.md §10
-    # Antideploy cloud only provides DATABASE_URL (single) — prefer it over ADMIN so runtime
-    # and migrate use the same credentials that already succeed for SELECTs (see /debug/login_check).
-    admin_url = os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_URL_ADMIN") or "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex"
+    # CI needs ADMIN (postgres) — reflect that, Antideploy only provides DATABASE_URL (single) so fallback there.
+    admin_url = os.environ.get("DATABASE_URL_ADMIN") or os.environ.get("DATABASE_URL") or "postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex"
     # Neon/Antideploy injects postgresql:// (psycopg2) but local defaults use +psycopg (psycopg3);
     # normalize to +psycopg2 at runtime so both drivers work regardless of which is installed.
     # The live app already runs with psycopg2, so force that for migrations too.

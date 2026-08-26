@@ -10,7 +10,8 @@ export function useStream(): void {
 
   useEffect(() => {
     if (!getToken()) return;
-    const es = new EventSource("/api/stream");
+    const _base = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "https://reflex-2.antideploy.com").replace(/\/$/, "");
+    const es = new EventSource(_base ? `${_base}/api/stream` : "/api/stream");
     es.onopen = () => setSse(true);
     es.onerror = () => setSse(false);
     es.onmessage = (ev) => {

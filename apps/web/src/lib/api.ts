@@ -123,6 +123,15 @@ export interface EvalRunDto {
   metrics: EvalMetricRow[];
 }
 
+const API_BASE = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "https://reflex-2.antideploy.com").replace(/\/$/, "");
+function withBase(path: string): string {
+  if (!API_BASE) return path;
+  if (path.startsWith("/api") || path.startsWith("/webhooks") || path.startsWith("/healthz") || path.startsWith("/metrics")) {
+    return `${API_BASE}${path}`;
+  }
+  return path;
+}
+
 const TOKEN_KEY = "reflex_token";
 
 export function getToken(): string | null {
@@ -146,7 +155,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init?.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
-  const res = await fetch(path, { ...init, headers });
+  const url = withBase(path);
+  const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     let msg = `${res.status}`;
     try {
