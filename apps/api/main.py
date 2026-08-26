@@ -57,6 +57,29 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.redis = get_redis()
     app.state.rate = RateLimiter(app.state.redis)
     app.state.started_at = datetime.now(UTC)
+    # Auto-seed for cloud deploys (Antideploy) - if users table empty, seed it so login works without manual console
+    try:
+        from sqlalchemy import text as _sa_text
+        from reflex.api.db import agent_sessionmaker as _agent_mk
+
+        _s = _agent_mk()()
+        try:
+            _cnt = _s.execute(_sa_text("SELECT COUNT(*) FROM runtime.users")).scalar()  # type: ignore[attr-defined]
+            if _cnt == 0:
+                log.info("cloud_autoseed_trigger", reason="users_empty")
+                from reflex.eval.seed import main as _seed_main
+
+                _seed_main()
+                log.info("cloud_autoseed_done")
+        except Exception as _e:
+            log.warning("cloud_autoseed_skip", error=str(_e))
+        finally:
+            try:
+                _s.close()
+            except Exception:
+                pass
+    except Exception as _e:
+        log.warning("cloud_autoseed_outer_skip", error=str(_e))
     yield
 
 
