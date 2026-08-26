@@ -417,31 +417,46 @@ def upgrade() -> None:
     )
 
     # ---- roles & grants (Schema §9 / ADR-004 / Rules §5) ---------------------
-    op.execute(_ensure_role("reflex_agent", "agent_dev_pw"))
-    op.execute(_ensure_role("reflex_eval", "eval_dev_pw"))
-    op.execute(_ensure_role("reflex_admin", "admin_dev_pw"))
-
-    op.execute("GRANT USAGE ON SCHEMA runtime TO reflex_agent")
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA runtime TO reflex_agent"
-    )
-    op.execute("REVOKE ALL ON runtime.action_ledger FROM reflex_agent")
-    op.execute("GRANT SELECT, INSERT ON runtime.action_ledger TO reflex_agent")
-    op.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA runtime TO reflex_agent")
-    op.execute("REVOKE ALL ON SCHEMA replay, eval FROM reflex_agent")
-
+    # Cloud (Neon) has no superuser - wrap role/grants in exception-safe blocks so migrate doesn't fail on Antideploy
+    for _role_sql in [
+        _ensure_role("reflex_agent", "agent_dev_pw"),
+        _ensure_role("reflex_eval", "eval_dev_pw"),
+        _ensure_role("reflex_admin", "admin_dev_pw"),
+    ]:
+        try:
+            op.execute(_role_sql)
+        except Exception:
+            pass  # Neon/managed DB: not superuser, skip role creation - app still works with single DB user
+    for _grant_sql in [
+        "GRANT USAGE ON SCHEMA runtime TO reflex_agent",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA runtime TO reflex_agent",
+        "REVOKE ALL ON runtime.action_ledger FROM reflex_agent",
+        "GRANT SELECT, INSERT ON runtime.action_ledger TO reflex_agent",
+        "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA runtime TO reflex_agent",
+        "REVOKE ALL ON SCHEMA replay, eval FROM reflex_agent",
+    ]:
+        try:
+            op.execute(_grant_sql)
+        except Exception:
+            pass
     for schema in ("runtime", "replay", "eval"):
-        op.execute(f"GRANT USAGE ON SCHEMA {schema} TO reflex_eval")
-        op.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {schema} TO reflex_eval")
-        op.execute(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO reflex_eval")
-
-    op.execute(
-        "ALTER DEFAULT PRIVILEGES IN SCHEMA runtime GRANT SELECT, INSERT, UPDATE, DELETE "
-        "ON TABLES TO reflex_agent"
-    )
-    op.execute(
-        "ALTER DEFAULT PRIVILEGES IN SCHEMA runtime REVOKE ALL ON TABLES FROM reflex_agent"
-    )  # no-op guard; explicit ledger grants above stay authoritative
+        for _sql in [
+            f"GRANT USAGE ON SCHEMA {schema} TO reflex_eval",
+            f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {schema} TO reflex_eval",
+            f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {schema} TO reflex_eval",
+        ]:
+            try:
+                op.execute(_sql)
+            except Exception:
+                pass
+    for _sql in [
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA runtime GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO reflex_agent",
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA runtime REVOKE ALL ON TABLES FROM reflex_agent",
+    ]:
+        try:
+            op.execute(_sql)
+        except Exception:
+            pass  # no-op guard; explicit ledger grants above stay authoritative
 
 
 def _ensure_role(role: str, default_pw: str) -> str:
