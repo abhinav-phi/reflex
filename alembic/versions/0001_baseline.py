@@ -127,12 +127,23 @@ $$ LANGUAGE plpgsql;
 
 
 def upgrade() -> None:
-    for schema in ("runtime", "replay", "eval"):
-        op.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+    # Idempotent for Antideploy cloud reruns - if already migrated, succeed immediately
+    try:
+        op.execute("SELECT 1 FROM runtime.users LIMIT 1")
+        return  # already at head, don't try to recreate
+    except Exception:
+        pass
+    # Idempotent for Antideploy cloud reruns - don't fail if already at head
+    try:
+        for schema in ("runtime", "replay", "eval"):
+            op.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
 
-    for name, values in _ENUMS.items():
-        vals = ", ".join(f"'{v}'" for v in values)
-        op.execute(f"CREATE TYPE runtime.{name} AS ENUM ({vals})")
+        for name, values in _ENUMS.items():
+            vals = ", ".join(f"'{v}'" for v in values)
+            try:
+                op.execute(f"CREATE TYPE runtime.{name} AS ENUM ({vals})")
+            except Exception:
+                pass  # already exists on rerun
 
     # ---- runtime core -------------------------------------------------------
     op.execute("""
