@@ -72,14 +72,50 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 _seed_main()
                 log.info("cloud_autoseed_done")
         except Exception as _e:
-            # If tables don't exist (SQLite fallback on Antideploy Node build where alembic skipped), try to seed anyway - seed creates tables
+            # If tables don't exist (SQLite fallback on Antideploy Node build where alembic skipped), create minimal demo tables
             if "does not exist" in str(_e) or "no such table" in str(_e).lower():
                 try:
                     log.info("cloud_autoseed_table_missing_try_seed", error=str(_e))
-                    from reflex.eval.seed import main as _seed_main2
+                    # Check if we are on SQLite fallback (Antideploy Node build)
+                    from reflex.core.settings import get_settings as _gs
 
-                    _seed_main2()
-                    log.info("cloud_autoseed_table_missing_done")
+                    _url = _gs().database_url
+                    if "sqlite" in _url:
+                        # Create minimal users table for demo login on SQLite - use quoted "runtime.users" so SELECT FROM runtime.users works
+                        log.info("cloud_sqlite_create_minimal_tables")
+                        _s.execute(_sa_text('CREATE TABLE IF NOT EXISTS "runtime.users" (id TEXT PRIMARY KEY, email TEXT UNIQUE, role TEXT, password_hash TEXT)'))
+                        _s.execute(_sa_text("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE, role TEXT, password_hash TEXT)"))
+                        # Seed minimal users for SQLite
+                        from reflex.api.security import hash_password as _hp
+                        import uuid as _uuid
+
+                        for _email, _role in [("admin@reflex.dev","admin"),("approver@reflex.dev","approver"),("operator@reflex.dev","operator"),("viewer@reflex.dev","viewer")]:
+                            # Check both possible tables for SQLite
+                            _exists = None
+                            try:
+                                _exists = _s.execute(_sa_text('SELECT 1 FROM "runtime.users" WHERE email=:e'), {"e": _email}).first()
+                            except Exception:
+                                try:
+                                    _exists = _s.execute(_sa_text("SELECT 1 FROM users WHERE email=:e"), {"e": _email}).first()
+                                except Exception:
+                                    _exists = None
+                            if _exists is None:
+                                try:
+                                    _s.execute(_sa_text('INSERT INTO "runtime.users" (id,email,role,password_hash) VALUES (:id,:e,:r,:p)'), {"id": str(_uuid.uuid4()), "e": _email, "r": _role, "p": _hp("reflex-demo")})
+                                except Exception as _ie:
+                                    log.warning("cloud_sqlite_insert_runtime_fail", error=str(_ie))
+                                try:
+                                    _s.execute(_sa_text("INSERT INTO users (id,email,role,password_hash) VALUES (:id,:e,:r,:p)"), {"id": str(_uuid.uuid4()), "e": _email, "r": _role, "p": _hp("reflex-demo")})
+                                except Exception:
+                                    pass
+                        _s.commit()
+                        log.info("cloud_sqlite_minimal_done")
+                    else:
+                        # Postgres - try normal seed (creates via runtime.users)
+                        from reflex.eval.seed import main as _seed_main2
+
+                        _seed_main2()
+                        log.info("cloud_autoseed_table_missing_done")
                 except Exception as _e2:
                     log.warning("cloud_autoseed_table_missing_fail", error=str(_e2), orig=str(_e))
             else:

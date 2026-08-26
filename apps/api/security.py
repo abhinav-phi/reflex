@@ -82,10 +82,27 @@ def require_role(minimum: Role):
 
 
 def authenticate(session: Session, email: str, password: str) -> dict[str, Any] | None:
-    row = session.execute(
-        text("SELECT id, role::text, password_hash FROM runtime.users WHERE email = :e"),
-        {"e": email},
-    ).first()
+    # Try Postgres query first, fallback to SQLite-compatible for Antideploy Node builds where we use sqlite + "runtime.users"
+    try:
+        row = session.execute(
+            text("SELECT id, role::text, password_hash FROM runtime.users WHERE email = :e"),
+            {"e": email},
+        ).first()
+    except Exception as _e:
+        # SQLite fallback: no :: cast, and table may be "runtime.users" quoted
+        if "no such table" in str(_e).lower() or "syntax" in str(_e).lower() or "near" in str(_e).lower():
+            try:
+                row = session.execute(
+                    text('SELECT id, role, password_hash FROM "runtime.users" WHERE email = :e'),
+                    {"e": email},
+                ).first()
+            except Exception:
+                row = session.execute(
+                    text("SELECT id, role, password_hash FROM users WHERE email = :e"),
+                    {"e": email},
+                ).first()
+        else:
+            raise
     if row is None or not verify_password(password, str(row[2])):
         log.info("login_failed", email=email)
         return None
