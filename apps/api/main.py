@@ -72,7 +72,18 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 _seed_main()
                 log.info("cloud_autoseed_done")
         except Exception as _e:
-            log.warning("cloud_autoseed_skip", error=str(_e))
+            # If tables don't exist (SQLite fallback on Antideploy Node build where alembic skipped), try to seed anyway - seed creates tables
+            if "does not exist" in str(_e) or "no such table" in str(_e).lower():
+                try:
+                    log.info("cloud_autoseed_table_missing_try_seed", error=str(_e))
+                    from reflex.eval.seed import main as _seed_main2
+
+                    _seed_main2()
+                    log.info("cloud_autoseed_table_missing_done")
+                except Exception as _e2:
+                    log.warning("cloud_autoseed_table_missing_fail", error=str(_e2), orig=str(_e))
+            else:
+                log.warning("cloud_autoseed_skip", error=str(_e))
         finally:
             try:
                 _s.close()
@@ -210,6 +221,17 @@ def root() -> dict:
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok", "service": "reflex-api"}
+
+
+@app.get("/debug/env")
+def debug_env() -> dict:
+    import os
+
+    url = os.environ.get("DATABASE_URL", "")
+    # hide password, show host only
+    host = url.split("@")[-1] if "@" in url else url
+    host = host.split("/")[0] if "/" in host else host
+    return {"db_host": host, "db_url_set": bool(url), "redis_set": bool(os.environ.get("REDIS_URL"))}
 
 
 @app.get("/metrics")
