@@ -12,39 +12,28 @@ export function LedgerDrawer({ episodeId }: { episodeId: string }) {
 
   return (
     <Overlay title="Ledger — hash-chained audit trail" onClose={() => window.dispatchEvent(new CustomEvent("close-ledger"))} width="640px">
-      {q.isError && <div className="px-24 py-16 text-sm text-red-400">409 chain break detected — system should halt itself.</div>}
+      {q.isError && <div className="px-6 md:px-24 py-6 text-sm text-error">409 chain break detected — system should halt itself.</div>}
       {q.isLoading && <Skeleton />}
       {q.data && (
         <>
-          <div className={`mx-24 mt-16 rounded-card border px-12 py-8 text-xs ${q.data.valid ? "border-emerald-500/50 text-emerald-300" : "border-red-500/60 text-red-300"}`}>
+          <div className={`mx-6 md:mx-24 mt-6 md:mt-16 rounded-xl border px-4 md:px-12 py-3 md:py-4 text-xs ${q.data.valid ? "border-secondary text-secondary bg-secondary-container/20" : "border-error text-error bg-error-container"}`}>
             chain verification: {q.data.valid ? "valid ✓" : "BROKEN ✗"}
           </div>
-          <ol className="space-y-0 px-24 py-16">
+          <ol className="space-y-0 px-6 md:px-24 py-6 md:py-16">
             {q.data.events.map((e) => (
-              <li key={e.seq} className="relative border-l border-cmd-border pb-16 pl-16 font-mono text-[11px]">
-                <span className="absolute -left-[5px] top-4 h-8 w-8 rounded-full border border-cmd-border bg-cmd-bg" />
-                <div className="text-slate-400">#{e.seq} · {new Date(e.created_at).toLocaleTimeString()}</div>
-                <div className="text-ink-dark">{String(e.event["type"] ?? "?")}</div>
-                {typeof e.event["reason"] === "string" && e.event["reason"] && (
-                  <div className="text-amber-300">reason: {e.event["reason"] as string}</div>
-                )}
-                {typeof e.event["mode"] === "string" && <div className="text-slate-400">mode={e.event["mode"] as string}</div>}
-                {typeof e.event["intervention"] === "string" && (
-                  <div className="text-slate-300">{e.event["intervention"] as string}</div>
-                )}
-                <div className="truncate text-slate-500" title={e.hash}>
-                  sha256 {e.hash.slice(0, 24)}…
-                </div>
+              <li key={e.seq} className="relative border-l border-outline-variant pb-6 md:pb-16 pl-4 md:pl-16 font-mono text-[11px]">
+                <span className="absolute -left-[5px] top-4 h-8 w-8 rounded-full border border-outline-variant bg-background" />
+                <div className="text-on-surface-variant">#{e.seq} · {new Date(e.created_at).toLocaleTimeString()}</div>
+                <div className="text-on-surface">{String(e.event["type"] ?? "?")}</div>
+                {typeof e.event["reason"] === "string" && e.event["reason"] && <div className="text-on-tertiary-container">reason: {e.event["reason"] as string}</div>}
+                {typeof e.event["mode"] === "string" && <div className="text-on-surface-variant">mode={e.event["mode"] as string}</div>}
+                {typeof e.event["intervention"] === "string" && <div className="text-on-surface">{e.event["intervention"] as string}</div>}
+                <div className="truncate text-outline" title={e.hash}>sha256 {e.hash.slice(0, 24)}…</div>
               </li>
             ))}
           </ol>
-          <div className="px-24 pb-24">
-            <button
-              className="rounded-btn border border-primary px-12 py-8 text-xs text-indigo-200 hover:bg-primary/20"
-              onClick={() => void post("/api/ledger/verify")}
-            >
-              verify full chain
-            </button>
+          <div className="px-6 md:px-24 pb-6 md:pb-24">
+            <button className="rounded-full border border-primary px-4 md:px-12 py-2 md:py-3 text-xs text-primary hover:bg-surface-container" onClick={() => void post("/api/ledger/verify")}>verify full chain</button>
           </div>
         </>
       )}

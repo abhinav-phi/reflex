@@ -29,20 +29,16 @@ export default function Ops() {
   const counters = (metrics.data?.["counters"] ?? {}) as Record<string, number>;
 
   return (
-    <div className="min-h-screen bg-cmd-bg text-ink-dark">
+    <div className="min-h-screen bg-background text-on-surface">
       <ControlBar />
-      <main className="mx-auto max-w-[1200px] px-24 pb-48">
-        <h1 className="mt-32 text-xl font-semibold">Ops — controls & failure injections</h1>
+      <main className="mx-auto max-w-[1200px] px-4 md:px-24 pb-48">
+        <h1 className="mt-8 md:mt-32 font-display text-headline-md text-primary">Ops — controls & failure injections</h1>
 
-        <div className="mt-24 grid gap-16 md:grid-cols-2">
+        <div className="mt-8 md:mt-24 grid gap-6 md:gap-4 md:grid-cols-2">
           <Card title="Mode control">
-            <div className="flex flex-wrap gap-8">
+            <div className="flex flex-wrap gap-2 md:gap-2">
               {["advisory", "autonomous", "degraded", "halted"].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => mode.mutate(m)}
-                  className="rounded-btn border border-cmd-border px-16 py-8 text-xs hover:border-primary"
-                >
+                <button key={m} onClick={() => mode.mutate(m)} className="rounded-full border border-outline-variant px-4 md:px-6 py-2 md:py-3 text-xs hover:border-primary hover:text-primary">
                   {m}
                 </button>
               ))}
@@ -50,30 +46,26 @@ export default function Ops() {
           </Card>
 
           <Card title={`Failure injections ${" "}`} sub="real paths — labeled events, never UI fakery (Rules §16.4)">
-            <div className="flex flex-wrap gap-8">
+            <div className="flex flex-wrap gap-2 md:gap-2">
               {[
                 ["llm_outage", "LLM outage → DEGRADED"],
                 ["llm_restore", "LLM restore"],
                 ["webhook_storm", "Webhook storm 1,000→214"],
                 ["complaint", "Complaint mid-episode"],
               ].map(([s, label]) => (
-                <button
-                  key={s}
-                  onClick={() => inject.mutate(s)}
-                  className="rounded-btn border border-amber-500/50 px-16 py-8 text-xs text-amber-200 hover:bg-amber-600/10"
-                >
+                <button key={s} onClick={() => inject.mutate(s)} className="rounded-full border border-tertiary-container/50 px-4 md:px-6 py-2 md:py-3 text-xs text-tertiary-container hover:bg-tertiary-container/10">
                   ⚡ {label}
                 </button>
               ))}
             </div>
-            {msg && <p className="mt-8 font-mono text-[11px] text-slate-400">{msg}</p>}
+            {msg && <p className="mt-4 font-mono text-[11px] text-on-surface-variant">{msg}</p>}
           </Card>
 
           <Card title="Counters">
-            <dl className="grid grid-cols-2 gap-x-24 gap-y-4 font-mono text-xs">
+            <dl className="grid grid-cols-2 gap-x-6 md:gap-x-24 gap-y-2 md:gap-y-4 font-mono text-xs">
               {Object.entries(counters).map(([k, v]) => (
-                <div key={k} className="flex justify-between border-b border-cmd-border/60 py-2">
-                  <dt className="text-slate-400">{k}</dt>
+                <div key={k} className="flex justify-between border-b border-outline-variant/60 py-2">
+                  <dt className="text-on-surface-variant">{k}</dt>
                   <dd>{v}</dd>
                 </div>
               ))}
@@ -83,29 +75,17 @@ export default function Ops() {
           <Card title="Evaluation runner">
             <div className="flex items-center justify-between text-sm">
               <span>protocol tag present</span>
-              <Chip tone={evalStatus.data?.tag_present ? "green" : "red"}>
-                {String(evalStatus.data?.tag_present ?? false)}
-              </Chip>
+              <Chip tone={evalStatus.data?.tag_present ? "green" : "red"}>{String(evalStatus.data?.tag_present ?? false)}</Chip>
             </div>
-            <div className="mt-8 flex items-center justify-between text-sm">
+            <div className="mt-4 flex items-center justify-between text-sm">
               <span>run in progress</span>
-              <Chip tone={evalStatus.data?.running ? "amber" : "slate"}>
-                {String(evalStatus.data?.running ?? false)}
-              </Chip>
+              <Chip tone={evalStatus.data?.running ? "amber" : "slate"}>{String(evalStatus.data?.running ?? false)}</Chip>
             </div>
-            <SimulatedBadge />
+            <div className="mt-4"><SimulatedBadge /></div>
           </Card>
 
           <Card title="Session">
-            <button
-              onClick={() => {
-                clearToken();
-                location.href = "/login";
-              }}
-              className="rounded-btn border border-cmd-border px-16 py-8 text-xs"
-            >
-              Sign out {getToken()?.slice(0, 10)}…
-            </button>
+            <button onClick={() => { clearToken(); location.href = "/login"; }} className="rounded-full border border-outline-variant px-4 md:px-6 py-2 md:py-3 text-xs">Sign out {getToken()?.slice(0, 10)}…</button>
           </Card>
         </div>
       </main>
@@ -115,10 +95,10 @@ export default function Ops() {
 
 function Card({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-card border border-cmd-border bg-cmd-surface p-16">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {sub && <p className="mb-8 mt-4 text-[11px] text-slate-500">{sub}</p>}
-      <div className={sub ? "" : "mt-8"}>{children}</div>
+    <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 md:p-6 warm-shadow">
+      <h2 className="font-display text-headline-sm text-primary">{title}</h2>
+      {sub && <p className="mb-4 mt-2 font-mono text-[11px] text-on-surface-variant">{sub}</p>}
+      <div className={sub ? "" : "mt-4"}>{children}</div>
     </section>
   );
 }

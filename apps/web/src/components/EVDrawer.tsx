@@ -78,23 +78,12 @@ function Term({ label, help, children }: { label: string; help: string; children
 
 export function Overlay({ onClose, title, width = "560px", children }: { onClose: () => void; title?: string; width?: string; children: ReactNode }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="h-full overflow-y-auto rounded-l-drawer border-l border-cmd-border bg-cmd-raised shadow-lg"
-        style={{ width }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="h-full overflow-y-auto rounded-l-[16px] border-l border-outline-variant bg-surface-container-lowest warm-shadow-lg" style={{ width }} onClick={(e) => e.stopPropagation()}>
         {title && (
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-cmd-border bg-cmd-raised px-24 py-16">
-            <h2 className="text-base font-semibold text-ink-dark">{title}</h2>
-            <button onClick={onClose} className="rounded-btn border border-cmd-border px-8 py-4 text-xs text-ink-muted hover:text-ink-dark">
-              close ✕
-            </button>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant bg-surface-container-lowest px-6 md:px-24 py-4 md:py-6">
+            <h2 className="text-base font-semibold text-on-surface">{title}</h2>
+            <button onClick={onClose} className="rounded-full border border-outline-variant px-3 py-1.5 text-xs text-on-surface-variant hover:text-on-surface">close ✕</button>
           </div>
         )}
         {children}

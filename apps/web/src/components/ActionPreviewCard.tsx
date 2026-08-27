@@ -31,18 +31,14 @@ export function ActionPreviewCard({
     ["REVERSIBILITY", reversibility],
   ];
   return (
-    <div className="mt-12 rounded-card border border-cmd-border bg-black/20 p-12 text-[12px]">
+    <div className="mt-12 rounded-xl border border-outline-variant bg-surface-container p-4 text-[12px] warm-shadow">
       {rows.map(([k, v]) => (
         <div key={k} className="grid grid-cols-[110px_1fr] gap-8 py-2">
-          <span className="font-mono uppercase text-ink-muted">{k}</span>
-          <span className="text-slate-200">{v}</span>
+          <span className="font-mono uppercase text-on-surface-variant">{k}</span>
+          <span className="text-on-surface">{v}</span>
         </div>
       ))}
-      {message && (
-        <p className="mt-8 rounded-card bg-black/30 p-8 font-mono text-[11px] text-slate-300">
-          preview: {message}
-        </p>
-      )}
+      {message && <p className="mt-4 rounded-lg bg-surface-container-high p-3 font-mono text-[11px] text-on-surface-variant">preview: {message}</p>}
     </div>
   );
 }

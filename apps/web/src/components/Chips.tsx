@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Status/diagnosis chips per Design §12 — icon+text, never color-only. */
+/** Status/diagnosis chips — updated to Reflex v2.0 tokens, props intact for callers. */
 export function Chip({
   tone = "slate",
   children,
@@ -11,27 +11,24 @@ export function Chip({
   title?: string;
 }) {
   const tones: Record<string, string> = {
-    slate: "bg-slate-700/40 text-slate-200 border-slate-500/50",
-    violet: "bg-violet-600/20 text-violet-200 border-violet-500/60",
-    green: "bg-emerald-600/20 text-emerald-200 border-emerald-500/60",
-    amber: "bg-amber-600/20 text-amber-100 border-amber-500/60",
-    red: "bg-red-600/20 text-red-200 border-red-500/60",
-    blue: "bg-sky-600/20 text-sky-100 border-sky-500/60",
+    slate: "bg-surface-variant text-on-surface-variant border-outline-variant",
+    violet: "bg-primary-fixed text-on-primary-fixed-variant border-primary-fixed-dim",
+    green: "bg-secondary-fixed/40 text-secondary border-secondary-fixed-dim",
+    amber: "bg-tertiary-fixed text-on-tertiary-fixed border-tertiary-fixed-dim",
+    red: "bg-error-container text-on-error-container border-error",
+    blue: "bg-surface-container-high text-on-surface border-outline-variant",
   };
   return (
-    <span
-      title={title}
-      className={`inline-flex items-center gap-1 rounded-chip border px-2 py-0.5 text-[11px] font-medium ${tones[tone]}`}
-    >
+    <span title={title} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-mono font-medium uppercase tracking-wide ${tones[tone]}`}>
       {children}
     </span>
   );
 }
 
-/** Mandatory honesty badge (Rules §7.3, Design §12). */
+/** Mandatory honesty badges (Rules §7.3) — must stay visible. */
 export function SimulatedBadge() {
   return (
-    <span className="inline-flex items-center rounded-chip border border-amber-400/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-300">
+    <span className="inline-flex items-center rounded border border-on-tertiary-container text-on-tertiary-container px-2 py-1 text-[10px] font-mono font-semibold tracking-widest uppercase">
       [SIMULATED]
     </span>
   );
@@ -39,7 +36,7 @@ export function SimulatedBadge() {
 
 export function TestModeBadge() {
   return (
-    <span className="inline-flex items-center rounded-chip border border-indigo-400/70 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-indigo-300">
+    <span className="inline-flex items-center rounded border border-outline text-outline px-2 py-1 text-[10px] font-mono font-semibold tracking-widest uppercase">
       [TEST MODE]
     </span>
   );

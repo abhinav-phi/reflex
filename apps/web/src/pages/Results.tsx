@@ -64,44 +64,28 @@ export default function Results() {
   }
 
   return (
-    <div className="min-h-screen bg-lightbg text-ink-light">
-      <div className="[&_*]:!text-ink-light [&_.bg-cmd-bg]:bg-lightbg">
-        <ControlBar />
-      </div>
-      <main className="mx-auto max-w-[1200px] px-24 pb-48 pt-32">
-        <header className="flex items-center justify-between">
+    <div className="min-h-screen bg-background text-on-surface">
+      <ControlBar />
+      <main className="mx-auto max-w-[1200px] px-4 md:px-24 pb-48 pt-8 md:pt-32">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="flex items-center gap-12 text-xl font-semibold">
-              Evaluation results <SimulatedBadge />
-            </h1>
-            <p className="mt-4 text-xs text-slate-500">
-              Pre-registered protocol · seeds {"{42, 1337, 2025}"} · bootstrap 95% CI (1,000 resamples)
-            </p>
+            <h1 className="flex items-center gap-3 font-display text-headline-md text-primary">Evaluation results <SimulatedBadge /></h1>
+            <p className="mt-2 font-mono text-label-mono text-on-surface-variant">Pre-registered protocol · seeds {"{42, 1337, 2025}"} · bootstrap 95% CI (1,000 resamples)</p>
           </div>
-          <button
-            onClick={() => void runEval()}
-            className="rounded-btn bg-primary px-16 py-8 text-xs font-semibold text-white hover:bg-primary-hover"
-          >
-            ▶ Run eval (protocol-tagged)
-          </button>
+          <button onClick={() => void runEval()} className="rounded-full bg-primary-container text-on-primary px-6 py-3 text-xs font-mono font-semibold hover:bg-primary">▶ Run eval (protocol-tagged)</button>
         </header>
 
-        {runs.length === 0 && (
-          <div className="mt-24 rounded-card border border-dashed border-slate-300 p-48 text-center text-sm text-slate-500">
-            No evaluation runs yet. <code>./eval/reproduce.sh</code> or press Run — protocol pre-registered.
-          </div>
-        )}
+        {runs.length === 0 && <div className="mt-8 md:mt-24 rounded-xl border border-dashed border-outline-variant p-8 md:p-12 text-center text-sm text-on-surface-variant bg-surface-container-lowest warm-shadow">No evaluation runs yet. <code>./eval/reproduce.sh</code> or press Run — protocol pre-registered.</div>}
 
-        {/* Arm table */}
-        <section className="mt-24 overflow-hidden rounded-card border border-slate-200 bg-white shadow-sm">
+        <section className="mt-8 md:mt-24 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest warm-shadow">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-outline-variant bg-surface-container text-left font-mono text-label-mono uppercase text-on-surface-variant">
               <tr>
-                <th className="px-16 py-8">Arm</th>
-                <th className="px-16 py-8">Recovery rate % [CI]</th>
-                <th className="px-16 py-8">Cost / ₹100</th>
-                <th className="px-16 py-8">Complaint %</th>
-                <th className="px-16 py-8">Tag</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Arm</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Recovery rate % [CI]</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Cost / ₹100</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Complaint %</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Tag</th>
               </tr>
             </thead>
             <tbody>
@@ -110,14 +94,12 @@ export default function Results() {
                 const cp = metric(r, "cost_per_100");
                 const cm = metric(r, "complaint_rate_pct");
                 return (
-                  <tr key={r.run_id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-16 py-10 font-semibold">{r.arm.toUpperCase()}</td>
-                    <td className="px-16 py-10 tabular-nums">{fmtCi(rr)}</td>
-                    <td className="px-16 py-10 tabular-nums">{pt(cp)}</td>
-                    <td className="px-16 py-10 tabular-nums">{pt(cm)}</td>
-                    <td className="px-16 py-10 font-mono text-[11px] text-slate-400">
-                      {r.preregistered_tag ?? "—"}
-                    </td>
+                  <tr key={r.run_id} className="border-b border-surface-container-high last:border-0 h-[64px]">
+                    <td className="px-4 md:px-6 font-semibold">{r.arm.toUpperCase()}</td>
+                    <td className="px-4 md:px-6 tabular-nums">{fmtCi(rr)}</td>
+                    <td className="px-4 md:px-6 tabular-nums">{pt(cp)}</td>
+                    <td className="px-4 md:px-6 tabular-nums">{pt(cm)}</td>
+                    <td className="px-4 md:px-6 font-mono text-[11px] text-outline">{r.preregistered_tag ?? "—"}</td>
                   </tr>
                 );
               })}
@@ -125,18 +107,17 @@ export default function Results() {
           </table>
         </section>
 
-        {/* Ablation bars */}
         {chartData.length > 0 && (
-          <section className="mt-24 rounded-card border border-slate-200 bg-white p-24 shadow-sm">
-            <h2 className="text-sm font-semibold">Ablations — which AI component buys which points</h2>
-            <div className="mx-auto mt-16 h-240 w-full">
+          <section className="mt-8 md:mt-24 rounded-xl border border-outline-variant bg-surface-container-lowest p-6 md:p-6 warm-shadow">
+            <h2 className="font-display text-headline-sm text-primary">Ablations — which AI component buys which points</h2>
+            <div className="mx-auto mt-6 md:mt-4 h-60 w-full">
               <ResponsiveContainer>
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e3e3dd" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
-                  <Bar dataKey="rate" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="rate" fill="#16261d" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

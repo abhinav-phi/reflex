@@ -26,23 +26,19 @@ export default function Approvals() {
   });
 
   return (
-    <div className="min-h-screen bg-cmd-bg text-ink-dark">
+    <div className="min-h-screen bg-background text-on-surface">
       <ControlBar />
-      <main className="mx-auto max-w-[1100px] px-24 pb-48">
-        <h1 className="mt-32 text-xl font-semibold">Approvals — human gate</h1>
-        <p className="mt-4 text-xs text-ink-muted">
-          Triggers: value &gt; ₹50,000 · mandate-class action · complaint handoff. Timeout ⇒ auto-decline (fail-closed).
-        </p>
+      <main className="mx-auto max-w-[1100px] px-4 md:px-24 pb-48">
+        <h1 className="mt-8 md:mt-32 font-display text-headline-md text-primary">Approvals — human gate</h1>
+        <p className="mt-4 font-mono text-label-mono text-on-surface-variant">Triggers: value &gt; ₹50,000 · mandate-class action · complaint handoff. Timeout ⇒ auto-decline (fail-closed).</p>
 
         {q.data && q.data.items.length === 0 && (
-          <div className="mt-24 rounded-card border border-dashed border-cmd-border p-48 text-center text-sm text-ink-muted">
-            Queue is clear — nothing is waiting on a human.
-          </div>
+          <div className="mt-12 md:mt-24 rounded-xl border border-dashed border-outline-variant p-12 md:p-48 text-center text-sm text-on-surface-variant bg-surface-container-lowest warm-shadow">Queue is clear — nothing is waiting on a human.</div>
         )}
 
-        <ul className="mt-24 space-y-16">
+        <ul className="mt-12 md:mt-24 space-y-6 md:space-y-16">
           {(q.data?.items ?? []).map((a) => (
-            <li key={a.id} className="rounded-card border border-cmd-border bg-cmd-surface p-16">
+            <li key={a.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 md:p-6 warm-shadow">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-lg font-bold tabular-nums">{formatINR(asPaise(a.amount_paise))}</span>

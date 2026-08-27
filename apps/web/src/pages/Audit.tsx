@@ -38,63 +38,38 @@ export default function Audit() {
   }
 
   return (
-    <div className="min-h-screen bg-lightbg text-ink-light">
+    <div className="min-h-screen bg-background text-on-surface">
       <ControlBar />
-      <main className="mx-auto max-w-[1200px] px-24 pb-48 pt-32">
-        <header className="flex items-center justify-between">
-          <h1 className="flex items-center gap-12 text-xl font-semibold">
-            Audit — append-only ledger <SimulatedBadge />
-          </h1>
-          <button
-            onClick={() => void verify()}
-            className="rounded-btn bg-primary px-16 py-8 text-xs font-semibold text-white hover:bg-primary-hover"
-          >
-            {verifying ? "verifying…" : "Verify chain"}
-          </button>
+      <main className="mx-auto max-w-[1200px] px-4 md:px-24 pb-48 pt-8 md:pt-32">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="flex items-center gap-3 font-display text-headline-md text-primary">Audit — append-only ledger <SimulatedBadge /></h1>
+          <button onClick={() => void verify()} className="rounded-full bg-primary-container text-on-primary px-6 py-3 text-xs font-mono font-semibold hover:bg-primary"> {verifying ? "verifying…" : "Verify chain"} </button>
         </header>
 
         {result && (
-          <div
-            className={`mt-16 rounded-card border p-16 text-sm ${
-              result.valid
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-red-400 bg-red-50 text-red-700"
-            }`}
-          >
-            {result.valid ? (
-              <>Chain valid ✓ — {result.checked} events verified in order.</>
-            ) : (
-              <>TAMPER DETECTED at seq {result.first_bad_seq} — integrity over availability: halt.</>
-            )}
+          <div className={`mt-6 md:mt-16 rounded-xl border p-4 md:p-6 text-sm ${result.valid ? "border-secondary text-secondary bg-secondary-container/20" : "border-error text-error bg-error-container"}`}>
+            {result.valid ? <>Chain valid ✓ — {result.checked} events verified in order.</> : <>TAMPER DETECTED at seq {result.first_bad_seq} — integrity over availability: halt.</>}
           </div>
         )}
 
-        <section className="mt-24 overflow-hidden rounded-card border border-slate-200 bg-white shadow-sm">
+        <section className="mt-8 md:mt-24 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest warm-shadow">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <thead className="border-b border-outline-variant bg-surface-container text-left font-mono text-label-mono uppercase text-on-surface-variant">
               <tr>
-                <th className="px-16 py-8">Episode</th>
-                <th className="px-16 py-8">Amount</th>
-                <th className="px-16 py-8">Status</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Episode</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Amount</th>
+                <th className="px-4 md:px-6 py-3 md:py-4">Status</th>
               </tr>
             </thead>
             <tbody>
               {eps.map((e) => (
-                <tr key={e.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-16 py-10 font-mono text-xs">{e.id.slice(0, 8)}</td>
-                  <td className="px-16 py-10 tabular-nums">{formatINR(asPaise(e.amount_paise))}</td>
-                  <td className="px-16 py-10">
-                    <Chip tone={e.status === "recovered" ? "green" : "slate"}>{e.status}</Chip>
-                  </td>
+                <tr key={e.id} className="border-b border-surface-container-high last:border-0 h-[64px]">
+                  <td className="px-4 md:px-6 font-mono text-xs">{e.id.slice(0, 8)}</td>
+                  <td className="px-4 md:px-6 tabular-nums">{formatINR(asPaise(e.amount_paise))}</td>
+                  <td className="px-4 md:px-6"><Chip tone={e.status === "recovered" ? "green" : "slate"}>{e.status}</Chip></td>
                 </tr>
               ))}
-              {eps.length === 0 && (
-                <tr>
-                  <td className="px-16 py-24 text-center text-slate-400" colSpan={3}>
-                    Ledger empty — start a replay first.
-                  </td>
-                </tr>
-              )}
+              {eps.length === 0 && <tr><td className="px-6 py-12 text-center text-on-surface-variant" colSpan={3}>Ledger empty — start a replay first.</td></tr>}
             </tbody>
           </table>
         </section>

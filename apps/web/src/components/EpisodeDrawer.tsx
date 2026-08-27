@@ -68,91 +68,64 @@ export function EpisodeDrawerContent({
   onOpenLedger: () => void;
 }) {
   return (
-    <div className="px-24 pb-32 pt-16 text-sm">
+    <div className="px-6 md:px-24 pb-8 md:pb-32 pt-6 md:pt-16 text-sm">
       <div className="flex items-baseline justify-between">
-        <div className="text-lg font-bold tabular-nums text-ink-dark">
-          {formatINR(asPaise(ep.amount_paise))}
-        </div>
+        <div className="text-lg font-bold tabular-nums text-on-surface">{formatINR(asPaise(ep.amount_paise))}</div>
         <Chip tone="blue">{ep.rail}</Chip>
       </div>
-      <div className="mt-4 font-mono text-[11px] text-slate-500">
-        {ep.id.slice(0, 8)} · customer {ep.customer_pseudonym} · opened{" "}
-        {new Date(ep.opened_at).toLocaleTimeString()} · closes{" "}
-        {new Date(ep.closes_at).toLocaleTimeString()}
-      </div>
+      <div className="mt-4 font-mono text-[11px] text-on-surface-variant">{ep.id.slice(0, 8)} · customer {ep.customer_pseudonym} · opened {new Date(ep.opened_at).toLocaleTimeString()} · closes {new Date(ep.closes_at).toLocaleTimeString()}</div>
 
-      <section className="mt-16">
-        <h3 className="text-[11px] uppercase tracking-wide text-ink-muted">Diagnosis</h3>
-        {ep.diagnoses.length === 0 && <p className="mt-8 text-ink-muted">in progress…</p>}
+      <section className="mt-8 md:mt-16">
+        <h3 className="font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">Diagnosis</h3>
+        {ep.diagnoses.length === 0 && <p className="mt-4 text-on-surface-variant">in progress…</p>}
         {ep.diagnoses.map((d, i) => (
-          <div key={i} className="mt-8 flex items-center gap-8 rounded-card border border-cmd-border p-12">
+          <div key={i} className="mt-4 flex items-center gap-3 md:gap-8 rounded-xl border border-outline-variant bg-surface-container p-4 md:p-3">
             {d.method === "rule" ? <Chip title="rules match">{d.canonical_code}</Chip> : <Chip tone="violet" title={`LLM conf ${d.confidence}`}>✦ LLM · {d.confidence.toFixed(2)}</Chip>}
-            <span className="text-[12px] text-slate-300">{d.rationale}</span>
+            <span className="text-[12px] text-on-surface">{d.rationale}</span>
           </div>
         ))}
       </section>
 
-      <section className="mt-16">
-        <h3 className="text-[11px] uppercase tracking-wide text-ink-muted">
-          Candidates — all persisted with EV breakdown
-        </h3>
-        <ul className="mt-8 space-y-4 font-mono text-[11px]">
+      <section className="mt-8 md:mt-16">
+        <h3 className="font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">Candidates — all persisted with EV breakdown</h3>
+        <ul className="mt-4 space-y-3 md:space-y-4 font-mono text-[11px]">
           {ep.candidates.map((c) => (
-            <li key={`${c.intervention}${c.ev_paise}`} className="flex justify-between rounded-card border border-cmd-border px-12 py-8">
+            <li key={`${c.intervention}${c.ev_paise}`} className="flex justify-between rounded-xl border border-outline-variant bg-surface-container px-4 md:px-3 py-3 md:py-2">
               <span>{c.intervention}</span>
-              <span>
-                p {Number(c.p_recover).toFixed(3)} ·{" "}
-                <span className={c.ev_paise < 0 ? "text-red-400" : "text-emerald-400"}>
-                  EV {formatINR(asPaise(c.ev_paise))}
-                </span>
-              </span>
+              <span>p {Number(c.p_recover).toFixed(3)} · <span className={c.ev_paise < 0 ? "text-error" : "text-secondary"}>EV {formatINR(asPaise(c.ev_paise))}</span></span>
             </li>
           ))}
-          {ep.candidates.length === 0 && <li className="text-ink-muted">—</li>}
+          {ep.candidates.length === 0 && <li className="text-on-surface-variant">—</li>}
         </ul>
       </section>
 
-      <section className="mt-16">
-        <h3 className="flex items-center justify-between text-[11px] uppercase tracking-wide text-ink-muted">
-          Actions & timeline
-          <button onClick={onOpenLedger} className="rounded-btn border border-cmd-border px-8 py-2 text-[10px] normal-case hover:text-ink-dark">
-            🧾 ledger drawer
-          </button>
-        </h3>
-        <ol className="mt-8 space-y-8">
+      <section className="mt-8 md:mt-16">
+        <h3 className="flex items-center justify-between font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">Actions & timeline<button onClick={onOpenLedger} className="rounded-full border border-outline-variant px-3 py-1.5 text-[10px] normal-case hover:text-on-surface">🧾 ledger drawer</button></h3>
+        <ol className="mt-4 space-y-4 md:space-y-8">
           {ep.actions.map((a) => (
-            <li key={a.id} className="rounded-card border border-cmd-border p-12">
+            <li key={a.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 md:p-3 warm-shadow">
               <button className="w-full text-left" onClick={() => onOpenEv(a)}>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[12px]">{a.intervention}</span>
-                  <StatusPill status={a.status} />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-8 text-[11px] text-slate-400">
+                <div className="flex items-center justify-between"><span className="font-mono text-[12px]">{a.intervention}</span><StatusPill status={a.status} /></div>
+                <div className="mt-2 flex flex-wrap gap-2 md:gap-8 text-[11px] text-on-surface-variant">
                   {a.channel && <span>{a.channel}</span>}
-                  {a.mode && <span className={a.mode === "degraded" ? "text-amber-300" : ""}>{a.mode}</span>}
+                  {a.mode && <span className={a.mode === "degraded" ? "text-tertiary-container" : ""}>{a.mode}</span>}
                   {a.scheduled_for && <span>for {new Date(a.scheduled_for).toLocaleTimeString()}</span>}
                 </div>
-                {a.message_final && (
-                  <p className="mt-8 line-clamp-2 rounded-card bg-black/30 p-8 text-[11px] text-slate-300">
-                    {a.message_final}
-                  </p>
-                )}
+                {a.message_final && <p className="mt-3 line-clamp-2 rounded-lg bg-surface-container-high p-3 text-[11px] text-on-surface-variant">{a.message_final}</p>}
               </button>
             </li>
           ))}
-          {ep.actions.length === 0 && <li className="text-ink-muted">no actions</li>}
+          {ep.actions.length === 0 && <li className="text-on-surface-variant">no actions</li>}
         </ol>
       </section>
 
-      <section className="mt-16">
-        <h3 className="text-[11px] uppercase tracking-wide text-ink-muted">Outcomes</h3>
-        {ep.outcomes.length === 0 && <p className="mt-8 text-ink-muted">observing…</p>}
-        <ul className="mt-8 space-y-4 text-[12px]">
+      <section className="mt-8 md:mt-16">
+        <h3 className="font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">Outcomes</h3>
+        {ep.outcomes.length === 0 && <p className="mt-4 text-on-surface-variant">observing…</p>}
+        <ul className="mt-4 space-y-3 md:space-y-4 text-[12px]">
           {ep.outcomes.map((o, i) => (
-            <li key={i} className="flex justify-between rounded-card border border-cmd-border px-12 py-8">
-              <span className={o.outcome === "recovered" ? "text-emerald-400" : "text-slate-300"}>
-                {o.outcome}{o.action_id ? " · attributed to action" : " · organic"}
-              </span>
+            <li key={i} className="flex justify-between rounded-xl border border-outline-variant bg-surface-container-lowest px-4 md:px-3 py-3 md:py-2 warm-shadow">
+              <span className={o.outcome === "recovered" ? "text-secondary" : "text-on-surface-variant"}>{o.outcome}{o.action_id ? " · attributed to action" : " · organic"}</span>
               {o.latency_secs != null && <span className="font-mono">{(o.latency_secs / 3600).toFixed(1)}h</span>}
             </li>
           ))}
