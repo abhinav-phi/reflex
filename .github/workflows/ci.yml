@@ -26,10 +26,13 @@ jobs:
           --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL_ADMIN: postgresql+psycopg://postgres:reflex_dev_pg@localhost:5432/reflex
-      DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:5432/reflex
-      DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:5432/reflex
+      DATABASE_URL: postgresql+psycopg://reflex_agent:R3flex_Agent_Pw_9x!2_Secure2026@localhost:5432/reflex
+      DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:R3flex_Eval_Pw_7y!4_Secure2026@localhost:5432/reflex
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: ci-secret-not-a-real-secret
+      REFLEX_AGENT_PW: R3flex_Agent_Pw_9x!2_Secure2026
+      REFLEX_EVAL_PW: R3flex_Eval_Pw_7y!4_Secure2026
+      REFLEX_ADMIN_PW: R3flex_Admin_Pw_8z!5_Secure2026
     steps:
       - uses: actions/checkout@v5
         with:
