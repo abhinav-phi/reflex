@@ -36,6 +36,12 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
       DATABASE_URL_ADMIN: postgresql+psycopg://postgres:reflex_dev_pg@postgres:5432/reflex
+      # Must be explicit: without it the cloud fallback makes EVAL inherit the
+      # reflex_agent role, which has no grants on the replay schema (ADR-004),
+      # so POST /api/replay/start fails with "permission denied for schema replay".
+      # Password matches the compose `eval` service / .env.example (dev password;
+      # CI builds fresh DBs with the R3flex_* secure passwords instead).
+      DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
       REDIS_URL: redis://redis:6379/0
     ports: ["8000:8000"]
     depends_on:
@@ -67,6 +73,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
       REDIS_URL: redis://redis:6379/0
     depends_on:
       api: { condition: service_healthy }
@@ -79,6 +86,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
       REDIS_URL: redis://redis:6379/0
     depends_on:
       api: { condition: service_healthy }

@@ -115,15 +115,16 @@ def run_diagnosis(stop: threading.Event) -> None:
 
     r = get_redis()
     llm = LlmClient(redis_client=r)
-    groups_ready = False
     while not stop.is_set():
-        if not groups_ready:
-            for shard in range(DX_SHARDS):
-                try:
-                    r.xgroup_create(f"reflex:dx:{shard}", "dx", id="0", mkstream=True)
-                except Exception:
-                    pass  # BUSYGROUP — fine
-            groups_ready = True
+        # Ensure the consumer group exists on every shard. mkstream=True creates
+        # the stream+group; BUSYGROUP is caught. Re-running each loop matters:
+        # if the stream keys are ever deleted (e.g. an operator flushes Redis),
+        # the groups vanish with them and XREADGROUP raises NOGROUP forever.
+        for shard in range(DX_SHARDS):
+            try:
+                r.xgroup_create(f"reflex:dx:{shard}", "dx", id="0", mkstream=True)
+            except Exception:
+                pass  # BUSYGROUP (or ephemeral) — fine
         got_any = False
         for shard in range(DX_SHARDS):
             try:
@@ -372,6 +373,8 @@ def _dispatch_due(r, llm, rp, mode: Mode) -> int:  # type: ignore[no-untyped-def
                 _bump(r, "shield_pass")
                 _bump(r, "dispatched")
         s.commit()
+        if evs is not None:
+            evs.commit()
         return n
     except Exception as exc:
         s.rollback()

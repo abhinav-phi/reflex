@@ -30,7 +30,7 @@ def _prepare_batch_rows(eval_session, agent_session, *, seed: str | int, n: int,
     """Create batch truth (eval role) + customers (agent role). Returns (batch_id, batch, customer_ids)."""
     from reflex.eval.runner import prepare_batch as runner_prepare_batch
 
-    return runner_prepare_batch(eval_session, seed=seed, n=n)
+    return runner_prepare_batch(eval_session, seed=seed, n=n, arm=arm)
 
 
 def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo: bool, redis_client) -> list[str]:  # type: ignore[no-untyped-def]
@@ -49,7 +49,7 @@ def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo:
 
         batches = [{"id": batch_id, "arm": arm}]
         if demo:
-            twin_id, (_b2, _c2, _m2) = _prepare_batch_rows(eval_s, agent_s, seed=seed, n=n)
+            twin_id, (_b2, _c2, _m2) = _prepare_batch_rows(eval_s, agent_s, seed=seed, n=n, arm=Arm.B1)
             batches.append({"id": twin_id, "arm": Arm.B1})
 
         with _state_lock:

@@ -114,7 +114,7 @@ def _round_or_none(x: float | None, nd: int = 2) -> float | None:
     return round(x, nd)
 
 
-def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = False) -> tuple[str, object]:
+def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = False, arm: str = "reflex") -> tuple[str, object]:
     """Persist a generated batch: replay_batches + sim_customers (hidden truth).
 
     Runtime rows (merchant/customers) are shared reference data created by seed;
@@ -148,9 +148,9 @@ def prepare_batch(session: Session, *, seed: str | int, n: int, demo: bool = Fal
     batch_id = session.execute(
         text(
             "INSERT INTO replay.replay_batches (seed, n_episodes, arm, simulator_version) "
-            "VALUES (:s, :n, 'reflex', :v) RETURNING id"
+            "VALUES (:s, :n, :arm, :v) RETURNING id"
         ),
-        {"s": seed_to_int(seed), "n": n, "v": SIMULATOR_VERSION},
+        {"s": seed_to_int(seed), "n": n, "arm": arm, "v": SIMULATOR_VERSION},
     ).scalar_one()
 
     for c in batch.customers:
