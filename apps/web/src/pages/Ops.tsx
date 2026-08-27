@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, post, downloadFile } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
 import { useStream } from "../hooks/useStream";
@@ -214,7 +215,7 @@ export default function Ops() {
           <Card title="Session">
             <div className="flex flex-wrap gap-2">
               <button onClick={() => void inject.mutate("llm_restore")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">clear degraded banner</button>
-              <a href="/login" onClick={() => localStorage.removeItem("reflex_token")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">Sign out</a>
+              <Link to="/login" onClick={() => localStorage.removeItem("reflex_token")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">Sign out</Link>
             </div>
           </Card>
 

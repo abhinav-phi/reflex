@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { ActionDto, CandidateDto, EpisodeDetail, EpisodeListItem, LiveMetrics } from "../lib/api";
 import { api } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
@@ -235,22 +236,22 @@ export default function Dashboard() {
 
       {/* Bottom nav for mobile */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-surface-container-high py-2 px-6 flex justify-between items-center md:hidden z-50">
-        <div className="flex flex-col items-center gap-1 text-primary font-bold">
+        <Link to="/dashboard" className="flex flex-col items-center gap-1 text-primary font-bold">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" } as React.CSSProperties}>dashboard</span>
           <span className="font-mono text-[10px]">Dashboard</span>
-        </div>
-        <a href="/approvals" className="flex flex-col items-center gap-1 text-on-surface-variant">
+        </Link>
+        <Link to="/approvals" className="flex flex-col items-center gap-1 text-on-surface-variant">
           <span className="material-symbols-outlined">fact_check</span>
           <span className="font-mono text-[10px]">Approvals</span>
-        </a>
-        <a href="/results" className="flex flex-col items-center gap-1 text-on-surface-variant">
+        </Link>
+        <Link to="/results" className="flex flex-col items-center gap-1 text-on-surface-variant">
           <span className="material-symbols-outlined">analytics</span>
           <span className="font-mono text-[10px]">Results</span>
-        </a>
-        <a href="/ops" className="flex flex-col items-center gap-1 text-on-surface-variant">
+        </Link>
+        <Link to="/ops" className="flex flex-col items-center gap-1 text-on-surface-variant">
           <span className="material-symbols-outlined">settings</span>
           <span className="font-mono text-[10px]">Ops</span>
-        </a>
+        </Link>
       </div>
 
       {openEpisode && detail.data && (

@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { api, post } from "../lib/api";
 import { useUi } from "../store";
 import { SimulatedBadge, TestModeBadge } from "./Chips";
 
 export function ControlBar() {
   const qc = useQueryClient();
+  const location = useLocation();
   const { mode, setMode, banner, setBanner, sseConnected } = useUi();
   const [confirmHalt, setConfirmHalt] = useState(false);
 
@@ -36,10 +38,10 @@ export function ControlBar() {
   return (
     <div className="sticky top-0 z-40 border-b border-outline-variant bg-background/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] items-center gap-6 px-4 md:px-margin py-4">
-        <a href="/dashboard" className="flex items-center gap-2 shrink-0">
+        <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
           <span className="material-symbols-outlined text-primary text-xl" style={{ fontVariationSettings: "'FILL' 1" } as React.CSSProperties}>radio_button_checked</span>
           <span className="font-display text-headline-sm font-bold tracking-tight text-primary">Reflex</span>
-        </a>
+        </Link>
 
         <div className="hidden md:flex items-center gap-2">
           <SimulatedBadge />
@@ -54,12 +56,12 @@ export function ControlBar() {
             ["/results", "Results"],
             ["/audit", "Audit"],
             ["/ops", "Ops"],
-          ].map(([href, label]) => {
-            const active = typeof window !== "undefined" && window.location.pathname === href;
+          ].map(([to, label]) => {
+            const active = location.pathname === to;
             return (
-              <a key={href} href={href} className={`font-mono text-label-mono ${active ? "text-primary font-bold border-b-2 border-primary pb-1" : "text-on-surface-variant font-medium hover:text-primary"} transition-colors`}>
+              <Link key={to} to={to} className={`font-mono text-label-mono ${active ? "text-primary font-bold border-b-2 border-primary pb-1" : "text-on-surface-variant font-medium hover:text-primary"} transition-colors`}>
                 {label}
-              </a>
+              </Link>
             );
           })}
         </nav>
@@ -84,9 +86,9 @@ export function ControlBar() {
           >
             {halted ? "Resume" : "Kill switch"}
           </button>
-          <a href="/ops" className="text-primary hover:text-primary-container transition-colors" aria-label="Ops settings">
+          <Link to="/ops" className="text-primary hover:text-primary-container transition-colors" aria-label="Ops settings">
             <span className="material-symbols-outlined">settings</span>
-          </a>
+          </Link>
         </div>
       </div>
 
