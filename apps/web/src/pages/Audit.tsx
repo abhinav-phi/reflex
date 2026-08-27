@@ -26,7 +26,7 @@ export default function Audit() {
   useEffect(() => {
     Promise.all([
       api<{ items: EpRow[] }>("/api/episodes?limit=100").then((d) => setEps(d.items)),
-      api<{ events: typeof ledgerEvents }>(`/api/ledger/export?format=json&limit=200`).then((d) => setLedgerEvents(d.events ?? [])),
+      api<{ items: typeof ledgerEvents }>(`/api/ledger/export?format=json&limit=200`).then((d) => setLedgerEvents(d.items ?? [])),
     ]).catch(() => {});
   }, []);
 

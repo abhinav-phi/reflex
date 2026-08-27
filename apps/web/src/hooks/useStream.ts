@@ -13,7 +13,7 @@ export function useStream(): void {
 
   useEffect(() => {
     if (!getToken()) return;
-    const _base = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "https://reflex-2.antideploy.com").replace(/\/$/, "");
+    const _base = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/$/, "");
     const url = `${_base ? _base : ""}/api/stream?token=${encodeURIComponent(getToken() ?? "")}`;
     const es = new EventSource(url);
     es.onopen = () => setSse(true);

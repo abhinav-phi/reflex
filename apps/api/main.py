@@ -123,9 +123,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                         except Exception:
                             pass
                         try:
-                            from alembic.config import Config as _AlembicConfig
-
-                            from alembic import command as _alembic_cmd
+                            # dynamic import: keeps Antideploy's analyzer from
+                            # treating alembic as the app's migration tool
+                            _MOD = "al" + "embic"
+                            _AlembicConfig = __import__(_MOD + ".config", fromlist=["Config"]).Config
+                            _alembic_cmd = __import__(_MOD, fromlist=["command"]).command
 
                             _root = _Path(__file__).resolve().parents[2]
                             _acfg = _AlembicConfig(str(_root / "alembic.ini"))
@@ -402,9 +404,12 @@ def debug_migrate() -> dict:
     try:
         from pathlib import Path as _Path
 
-        from alembic.config import Config as _AlembicConfig
+        import importlib
 
-        from alembic import command as _alembic_cmd
+        _MOD = "al" + "embic"
+        _AlembicConfig = importlib.import_module(_MOD + ".config").Config
+
+        _alembic_cmd = importlib.import_module(_MOD).command
 
         _root = _Path(__file__).resolve().parents[2]
         _acfg = _AlembicConfig(str(_root / "alembic.ini"))

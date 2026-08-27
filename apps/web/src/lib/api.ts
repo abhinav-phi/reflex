@@ -127,7 +127,7 @@ export interface EvalRunDto {
   metrics: EvalMetricRow[];
 }
 
-const API_BASE = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "https://reflex-2.antideploy.com").replace(/\/$/, "");
+const API_BASE = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/$/, "");
 function withBase(path: string): string {
   if (!API_BASE) return path;
   if (path.startsWith("/api") || path.startsWith("/webhooks") || path.startsWith("/healthz") || path.startsWith("/metrics")) {

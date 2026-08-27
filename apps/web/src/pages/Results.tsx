@@ -62,9 +62,9 @@ export default function Results() {
   const chartData = ablations
     .map((r) => ({
       name: `A-${r.ablation}`,
-      rate: (() => { const m = metric(r, "recovery_rate_pct"); return m ? (point(m) ?? 0) : 0; })(),
+      rate: (() => { const m = metric(r, "recovery_rate"); return m ? ((point(m) ?? 0) * 100) : 0; })(),
       ci: (() => {
-        const m = metric(r, "recovery_rate_pct") ?? {};
+        const m = metric(r, "recovery_rate") ?? {};
         const lo = Number(m["ci_low"] ?? 0);
         return point(m) != null ? point(m)! - lo : 0;
       })(),
@@ -72,7 +72,7 @@ export default function Results() {
     .concat(
       headline.map((r) => ({
         name: r.arm.toUpperCase(),
-        rate: (() => { const m = metric(r, "recovery_rate_pct"); return m ? (point(m) ?? 0) : 0; })(),
+        rate: (() => { const m = metric(r, "recovery_rate"); return m ? ((point(m) ?? 0) * 100) : 0; })(),
         ci: 0,
       })),
     );
@@ -106,15 +106,15 @@ export default function Results() {
             </thead>
             <tbody>
               {headline.map((r) => {
-                const rr = metric(r, "recovery_rate_pct");
-                const cp = metric(r, "cost_per_100");
-                const cm = metric(r, "complaint_rate_pct");
+                const rr = metric(r, "recovery_rate");
+                const cp = metric(r, "cost_per_100p");
+                const cm = metric(r, "complaint_rate");
                 return (
                   <tr key={r.run_id} className="border-b border-surface-container-high last:border-0 h-[64px]">
                     <td className="px-4 md:px-6 font-semibold">{r.arm.toUpperCase()}</td>
                     <td className="px-4 md:px-6 tabular-nums">{fmtCi(rr)}</td>
                     <td className="px-4 md:px-6 tabular-nums">{pt(cp)}</td>
-                    <td className="px-4 md:px-6 tabular-nums">{pt(cm)}</td>
+                    <td className="px-4 md:px-6 tabular-nums">{pt(cm, true)}</td>
                     <td className="px-4 md:px-6 font-mono text-[11px] text-outline">{r.preregistered_tag ?? "—"}</td>
                   </tr>
                 );
@@ -144,9 +144,11 @@ export default function Results() {
   );
 }
 
-function pt(m?: Record<string, unknown>): string {
+/** The eval DB stores rates as fractions (0.31 = 31%); render as percentages. */
+function pt(m?: Record<string, unknown>, asPct = false): string {
   const v = m ? point(m) : null;
-  return v == null ? "—" : String(v);
+  if (v == null) return "—";
+  return asPct ? `${(v * 100).toFixed(1)}%` : String(v);
 }
 
 function fmtCi(m?: Record<string, unknown>): string {
@@ -154,5 +156,6 @@ function fmtCi(m?: Record<string, unknown>): string {
   if (p == null || !m) return "—";
   const lo = Number(m["ci_low"]);
   const hi = Number(m["ci_high"]);
-  return `${p.toFixed(1)} [${lo.toFixed(1)}, ${hi.toFixed(1)}]`;
+  if (lo === 0 && hi === 0) return `${(p * 100).toFixed(1)}%`;
+  return `${(p * 100).toFixed(1)} [${(lo * 100).toFixed(1)}, ${(hi * 100).toFixed(1)}]`;
 }

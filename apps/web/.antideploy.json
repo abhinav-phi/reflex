@@ -1,0 +1,6 @@
+{
+  "name": "reflex-web",
+  "buildDirectory": ".",
+  "buildCommand": "npm run build",
+  "startCommand": "npx serve -s dist -l 80"
+}

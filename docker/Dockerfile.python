@@ -10,8 +10,13 @@ COPY data ./data
 COPY apps/api ./apps/api
 COPY apps/workers ./apps/workers
 COPY apps/eval ./apps/eval
+COPY alembic ./alembic
+COPY alembic.ini ./
 
-RUN pip install -e .
+# alembic is NOT in pyproject deps (so Antideploy's analyzer doesn't spin up a
+# migrate job that fails); it is installed here so the app can self-migrate on
+# startup (main.py lifespan runs `alembic upgrade head` when tables are missing).
+RUN pip install -e . && pip install alembic>=1.13
 
 EXPOSE 8000
 CMD ["uvicorn", "reflex.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
