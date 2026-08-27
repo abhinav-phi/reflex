@@ -56,9 +56,14 @@ def decode_token(token: str) -> dict[str, Any]:
 
 def bearer_payload(request: Request) -> dict[str, Any]:
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="missing bearer token")
-    return decode_token(auth[7:])
+    if auth.startswith("Bearer "):
+        return decode_token(auth[7:])
+    # EventSource cannot set headers, so the SSE stream passes the JWT as
+    # ?token= (ADR-006). Same validation, different transport.
+    qp = request.query_params.get("token")
+    if qp:
+        return decode_token(qp)
+    raise HTTPException(status_code=401, detail="missing bearer token")
 
 
 def current_user(request: Request) -> dict[str, Any]:

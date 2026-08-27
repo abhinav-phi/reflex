@@ -6,7 +6,7 @@ export function Chip({
   children,
   title,
 }: {
-  tone?: "slate" | "violet" | "green" | "amber" | "red" | "blue";
+  tone?: "slate" | "violet" | "green" | "amber" | "red" | "blue" | "lime";
   children: ReactNode;
   title?: string;
 }) {
@@ -17,6 +17,8 @@ export function Chip({
     amber: "bg-tertiary-fixed text-on-tertiary-fixed border-tertiary-fixed-dim",
     red: "bg-error-container text-on-error-container border-error",
     blue: "bg-surface-container-high text-on-surface border-outline-variant",
+    // AI elements: lime/olive from the existing palette so LLM reads distinct from RULE slate
+    lime: "bg-secondary-container text-on-secondary-container border-secondary",
   };
   return (
     <span title={title} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-mono font-medium uppercase tracking-wide ${tones[tone]}`}>
@@ -77,7 +79,7 @@ export function DiagnosisChip({ d }: { d?: { canonical_code: string; confidence:
     );
   if (d.method === "rule") return <Chip title="rules match">{d.canonical_code}</Chip>;
   return (
-    <Chip tone="violet" title={`LLM confidence ${d.confidence}`}>
+    <Chip tone="lime" title={`LLM confidence ${d.confidence}`}>
       ✦ LLM · {d.confidence.toFixed(2)}
     </Chip>
   );

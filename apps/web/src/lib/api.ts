@@ -87,6 +87,10 @@ export interface LiveMetrics {
   speed: number;
   mode: string;
   llm_outage?: boolean;
+  merchant_name?: string | null;
+  contacts_today?: number;
+  contacts_per_day?: number;
+  quiet_hours?: string;
   counters: Record<string, number>;
 }
 
@@ -172,3 +176,22 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const post = <T>(path: string, body?: unknown): Promise<T> =>
   api<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
+
+/** Download a file endpoint (CSV/JSON export) with the Authorization header —
+ *  plain <a href> links can't carry the JWT and would 401. */
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(withBase(path), { headers });
+  if (!res.ok) throw new ApiError(res.status, `export failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

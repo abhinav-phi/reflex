@@ -1,17 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import type { LedgerEventDto } from "../lib/api";
-import { api, post } from "../lib/api";
+import { api } from "../lib/api";
+import { useUi } from "../store";
 import { Overlay } from "./EVDrawer";
 
 /** Ledger drawer (Design §14): hash timeline incl. blocked actions. */
 export function LedgerDrawer({ episodeId }: { episodeId: string }) {
+  const close = useUi((s) => s.openLedgerDrawer);
+  const verify = useQuery({
+    queryKey: ["ledger-verify"],
+    queryFn: () => api<{ valid: boolean; first_bad_seq: number | null; checked: number }>("/api/ledger/verify"),
+    enabled: false,
+  });
   const q = useQuery({
     queryKey: ["ledger", episodeId],
     queryFn: () => api<{ valid: boolean; events: LedgerEventDto[] }>(`/api/episodes/${episodeId}/ledger`),
   });
 
   return (
-    <Overlay title="Ledger — hash-chained audit trail" onClose={() => window.dispatchEvent(new CustomEvent("close-ledger"))} width="640px">
+    <Overlay title="Ledger — hash-chained audit trail" onClose={() => close(null)} width="640px">
       {q.isError && <div className="px-6 md:px-24 py-6 text-sm text-error">409 chain break detected — system should halt itself.</div>}
       {q.isLoading && <Skeleton />}
       {q.data && (
@@ -28,12 +35,22 @@ export function LedgerDrawer({ episodeId }: { episodeId: string }) {
                 {typeof e.event["reason"] === "string" && e.event["reason"] && <div className="text-on-tertiary-container">reason: {e.event["reason"] as string}</div>}
                 {typeof e.event["mode"] === "string" && <div className="text-on-surface-variant">mode={e.event["mode"] as string}</div>}
                 {typeof e.event["intervention"] === "string" && <div className="text-on-surface">{e.event["intervention"] as string}</div>}
-                <div className="truncate text-outline" title={e.hash}>sha256 {e.hash.slice(0, 24)}…</div>
+                <div className="truncate text-outline" title={`${e.prev_hash} → ${e.hash}`}>sha256 {e.hash.slice(0, 24)}…</div>
               </li>
             ))}
           </ol>
-          <div className="px-6 md:px-24 pb-6 md:pb-24">
-            <button className="rounded-full border border-primary px-4 md:px-12 py-2 md:py-3 text-xs text-primary hover:bg-surface-container" onClick={() => void post("/api/ledger/verify")}>verify full chain</button>
+          <div className="px-6 md:px-24 pb-6 md:pb-24 flex items-center gap-4">
+            <button
+              className="rounded-full border border-primary px-4 md:px-12 py-2 md:py-3 text-xs text-primary hover:bg-surface-container"
+              onClick={() => void verify.refetch()}
+            >
+              {verify.isFetching ? "verifying…" : "verify full chain"}
+            </button>
+            {verify.data && (
+              <span className={`font-mono text-[11px] ${verify.data.valid ? "text-secondary" : "text-error"}`}>
+                {verify.data.valid ? `valid ✓ — ${verify.data.checked} events` : `TAMPERED at seq ${verify.data.first_bad_seq}`}
+              </span>
+            )}
           </div>
         </>
       )}

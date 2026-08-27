@@ -31,21 +31,33 @@ export default function Dashboard() {
     queryFn: () => api<EpisodeDetail>(`/api/episodes/${openEpisode}`),
     enabled: !!openEpisode,
   });
-  const guardrails = useQuery({
-    queryKey: ["guardrails"],
-    queryFn: () => api<{ configured: boolean; merchant: { cfg: Record<string, unknown>; mode: string } | null }>("/api/onboarding/state"),
-    retry: false,
-  });
 
   const m = metrics.data;
-  const cfg = guardrails.data?.merchant?.cfg as Record<string, unknown> | undefined;
-  const contactsPerDay = Number(cfg?.contacts_per_day ?? 2);
-  const quietHours = String(cfg?.quiet_hours ?? "21:00-09:00").replace("21:00-09:00", "21–09");
+  const contactsToday = m?.contacts_today ?? 0;
+  const contactsPerDay = m?.contacts_per_day ?? 2;
+  const quietHours = (m?.quiet_hours ?? "21:00-09:00").replace(":00", "").replace("21:00-09:00", "21–09");
 
-  // Today's Signal — backend doesn't expose a dedicated 89.6% field; this is the
-  // rules diagnosis coverage from the eval holdout (static per design, not faked per-row).
-  // If backend later exposes it, replace this with a real query.
-  const signalPct = "89.6%";
+  // Today's Signal — live diagnosis coverage from the counters when episodes
+  // exist; otherwise the eval holdout number (eval/results dx_holdout).
+  const ctr = m?.counters ?? {};
+  const dxTotal = (ctr["dx_rule"] ?? 0) + (ctr["dx_llm"] ?? 0);
+  const liveCoverage = (ctr["episodes_created"] ?? 0) > 0 ? (dxTotal / (ctr["episodes_created"] ?? 1)) * 100 : null;
+  const signalPct = liveCoverage != null ? `${liveCoverage.toFixed(1)}%` : "89.6%";
+  const signalLabel = liveCoverage != null ? "diagnosis coverage · live" : "rules diagnosis coverage · eval holdout";
+
+  const dateLine = new Date()
+    .toLocaleDateString("en-GB", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
+    .toUpperCase();
+
+  // Shield headline reflects the live mode — not a static "All clear."
+  const mode = m?.mode ?? "advisory";
+  const shieldHeadline = mode === "halted" ? "Halted." : mode === "degraded" ? "Degraded fallback." : "All clear.";
+  const shieldBody =
+    mode === "halted"
+      ? "Kill switch active. Scheduled actions are cancelled; dispatch resumes only on deliberate re-enable."
+      : mode === "degraded"
+        ? "LLM unavailable — deterministic fallback is choosing actions, stamped DEGRADED."
+        : "Deterministic guardrails are active. No action can bypass the safety layer.";
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -54,7 +66,7 @@ export default function Dashboard() {
         {/* Header */}
         <header className="mb-12 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
           <div>
-            <p className="font-mono text-label-mono text-on-tertiary-container uppercase tracking-[0.1em] mb-4">TUESDAY, 26 AUGUST 2025 / SIPDAILY</p>
+            <p className="font-mono text-label-mono text-on-tertiary-container uppercase tracking-[0.1em] mb-4">{dateLine} / {m?.merchant_name ?? "SipDaily"}</p>
             <h1 className="font-display text-display-lg-mobile md:text-display-lg text-primary mb-2">Recovery overview.</h1>
             <p className="font-sans text-body-lg text-on-surface-variant">The agent is watching failed payments and choosing the least annoying next step.</p>
           </div>
@@ -73,26 +85,28 @@ export default function Dashboard() {
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow relative overflow-hidden">
             <div className="w-6 h-1 bg-on-tertiary-container rounded-full mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Failed value today</p>
-            <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.failed_today_paise)) : "₹2,41,000"}</h2>
-            <p className="font-mono text-label-mono text-on-surface-variant">{m ? `${m.episodes_open} open episodes` : "48 open episodes"}</p>
+            <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.failed_today_paise)) : "—"}</h2>
+            <p className="font-mono text-label-mono text-on-surface-variant">{m ? `${m.episodes_open} open episodes` : "loading live metrics…"}</p>
           </div>
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow">
             <div className="h-1 mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Recovered by Reflex</p>
-            <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.recovered_reflex_paise)) : "₹76,420"}</h2>
-            <p className="font-mono text-label-mono bg-secondary-fixed inline-block px-2 py-1 rounded text-on-secondary-fixed">+49% vs tuned baseline</p>
+            <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.recovered_reflex_paise)) : "—"}</h2>
+            <p className="font-mono text-label-mono bg-secondary-fixed inline-block px-2 py-1 rounded text-on-secondary-fixed">
+              {m && m.recovered_b1_paise > 0 ? `${(((m.recovered_reflex_paise - m.recovered_b1_paise) / m.recovered_b1_paise) * 100).toFixed(0)}% vs tuned baseline` : "vs tuned baseline"}
+            </p>
           </div>
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow">
             <div className="h-1 mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Customer complaints</p>
-            <h2 className="font-display text-headline-md text-primary mb-4">{m ? `${(m.complaint_rate * 100).toFixed(2)}%` : "0.26%"}</h2>
+            <h2 className="font-display text-headline-md text-primary mb-4">{m ? `${(m.complaint_rate * 100).toFixed(2)}%` : "—"}</h2>
             <p className="font-mono text-label-mono text-on-surface-variant">Below 0.5% safety gate</p>
           </div>
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow">
             <div className="h-1 mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Cost per ₹100 recovered</p>
-            <h2 className="font-display text-headline-md text-primary mb-4">{m?.cost_per_100p != null ? `₹${m.cost_per_100p.toFixed(2)}` : "₹0.27"}</h2>
-            <p className="font-mono text-label-mono text-on-surface-variant">×{m?.speed.toFixed(0) ?? 100} replay speed</p>
+            <h2 className="font-display text-headline-md text-primary mb-4">{m?.cost_per_100p != null ? `₹${m.cost_per_100p.toFixed(2)}` : "—"}</h2>
+            <p className="font-mono text-label-mono text-on-surface-variant">{m ? `×${m.speed.toFixed(0)} replay speed` : "loading…"}</p>
           </div>
         </div>
 
@@ -136,12 +150,15 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="font-mono text-label-mono text-on-surface">
                   {(episodes.data?.items ?? []).map((e) => (
-                    <tr key={e.id} className="border-b border-surface-container-high h-[64px] hover:bg-surface-container-low/50">
+                    <tr
+                      key={e.id}
+                      onClick={() => openEpisodeDrawer(e.id)}
+                      className="border-b border-surface-container-high h-[64px] hover:bg-surface-container-low/50 cursor-pointer"
+                      title="open episode drawer"
+                    >
                       <td className="py-2">
-                        <button onClick={() => openEpisodeDrawer(e.id)} className="text-left">
-                          <div className="text-primary font-bold">{e.customer_pseudonym}</div>
-                          <div className="text-outline-variant font-normal text-[10px]">{e.id.slice(0, 12)}</div>
-                        </button>
+                        <div className="text-primary font-bold">{e.customer_pseudonym}</div>
+                        <div className="text-outline-variant font-normal text-[10px]">{e.id.slice(0, 12)}</div>
                       </td>
                       <td>
                         <div className="text-primary font-bold">{formatINR(asPaise(e.amount_paise))}</div>
@@ -188,29 +205,29 @@ export default function Dashboard() {
 
           {/* Right column */}
           <div className="lg:col-span-4 flex flex-col gap-gutter">
-            <div className="bg-primary border border-primary-container rounded-xl p-8 shadow-none relative overflow-hidden">
-              <p className="font-mono text-label-mono text-secondary-container tracking-widest uppercase mb-4">Shield Status</p>
+            <div className={`border rounded-xl p-8 shadow-none relative overflow-hidden ${mode === "halted" ? "bg-error-container border-error text-on-error-container" : mode === "degraded" ? "bg-tertiary-fixed border-tertiary-container text-on-tertiary-fixed" : "bg-primary border-primary-container text-on-primary"}`}>
+              <p className="font-mono text-label-mono tracking-widest uppercase mb-4">Shield Status</p>
               <div className="flex justify-between items-start mb-6">
-                <h2 className="font-display text-headline-md text-on-primary">All clear.</h2>
-                <span className="material-symbols-outlined text-secondary-container">check</span>
+                <h2 className="font-display text-headline-md">{shieldHeadline}</h2>
+                <span className="material-symbols-outlined">{mode === "halted" ? "block" : mode === "degraded" ? "warning" : "check"}</span>
               </div>
-              <p className="font-sans text-body-md text-on-primary-container mb-8">Deterministic guardrails are active. No action can bypass the safety layer.</p>
+              <p className="font-sans text-body-md mb-8">{shieldBody}</p>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-primary-container rounded-lg p-4">
-                  <p className="font-mono text-[10px] text-on-primary-container mb-1">Contacts / day</p>
-                  <p className="font-mono text-body-lg text-on-primary font-bold">{contactsPerDay}/{contactsPerDay}</p>
+                <div className={mode === "halted" || mode === "degraded" ? "bg-error/20 rounded-lg p-4" : "bg-primary-container rounded-lg p-4"}>
+                  <p className="font-mono text-[10px] opacity-75 mb-1">Contacts / day</p>
+                  <p className="font-mono text-body-lg font-bold">{contactsToday}/{contactsPerDay}</p>
                 </div>
-                <div className="bg-primary-container rounded-lg p-4">
-                  <p className="font-mono text-[10px] text-on-primary-container mb-1">Quiet hours</p>
-                  <p className="font-mono text-body-lg text-on-primary font-bold">{quietHours}</p>
+                <div className={mode === "halted" || mode === "degraded" ? "bg-error/20 rounded-lg p-4" : "bg-primary-container rounded-lg p-4"}>
+                  <p className="font-mono text-[10px] opacity-75 mb-1">Quiet hours</p>
+                  <p className="font-mono text-body-lg font-bold">{quietHours}</p>
                 </div>
               </div>
             </div>
 
             <div className="bg-primary-fixed rounded-xl p-8 border border-primary-fixed-dim">
-              <p className="font-mono text-label-mono text-on-secondary-container tracking-widest uppercase mb-4 opacity-70">Today&apos;s Signal</p>
+              <p className="font-mono text-label-mono tracking-widest uppercase mb-4 opacity-70">Today&apos;s Signal</p>
               <h2 className="font-display text-display-lg-mobile text-on-primary-fixed mb-2">{signalPct}</h2>
-              <p className="font-mono text-label-mono text-on-primary-fixed-variant">rules diagnosis coverage</p>
+              <p className="font-mono text-label-mono text-on-primary-fixed-variant">{signalLabel}</p>
             </div>
           </div>
         </div>
@@ -232,7 +249,7 @@ export default function Dashboard() {
         </a>
         <a href="/ops" className="flex flex-col items-center gap-1 text-on-surface-variant">
           <span className="material-symbols-outlined">settings</span>
-          <span className="font-mono text-[10px]">Settings</span>
+          <span className="font-mono text-[10px]">Ops</span>
         </a>
       </div>
 

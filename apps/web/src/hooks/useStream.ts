@@ -3,15 +3,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUi } from "../store";
 import { getToken } from "../lib/api";
 
-/** SSE subscription (ADR-006). Additive event names only (Rules §6.4). */
+/** SSE subscription (ADR-006). Additive event names only (Rules §6.4).
+ *  EventSource cannot send headers, so the JWT rides as ?token= (accepted by
+ *  security.bearer_payload). Without a token the socket would 401 forever and
+ *  the nav pill would stay "connecting". */
 export function useStream(): void {
   const qc = useQueryClient();
-  const { setSse, touch, setBanner, setMode } = useUi();
+  const { setSse, touch, setBanner, setMode, pushEvent } = useUi();
 
   useEffect(() => {
     if (!getToken()) return;
     const _base = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "https://reflex-2.antideploy.com").replace(/\/$/, "");
-    const es = new EventSource(_base ? `${_base}/api/stream` : "/api/stream");
+    const url = `${_base ? _base : ""}/api/stream?token=${encodeURIComponent(getToken() ?? "")}`;
+    const es = new EventSource(url);
     es.onopen = () => setSse(true);
     es.onerror = () => setSse(false);
     es.onmessage = (ev) => {
@@ -23,6 +27,12 @@ export function useStream(): void {
         return;
       }
       const type = String(msg.type ?? "");
+      const detail = typeof msg.episode_id === "string"
+        ? String(msg.episode_id).slice(0, 8)
+        : typeof msg.scenario === "string"
+          ? String(msg.scenario)
+          : undefined;
+      pushEvent({ at: new Date().toISOString(), type, detail });
       if (
         [
           "episode.created",
@@ -30,11 +40,13 @@ export function useStream(): void {
           "counters.updated",
           "approval.created",
           "storm.stats",
+          "complaint.injected",
         ].includes(type)
       ) {
         void qc.invalidateQueries({ queryKey: ["metrics"] });
         void qc.invalidateQueries({ queryKey: ["episodes"] });
         void qc.invalidateQueries({ queryKey: ["approvals"] });
+        void qc.invalidateQueries({ queryKey: ["episode"] });
       }
       if (type === "mode.changed") {
         setMode(String(msg.mode));
@@ -49,5 +61,5 @@ export function useStream(): void {
       }
     };
     return () => es.close();
-  }, [qc, setSse, touch, setBanner, setMode]);
+  }, [qc, setSse, touch, setBanner, setMode, pushEvent]);
 }

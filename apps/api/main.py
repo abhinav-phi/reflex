@@ -185,6 +185,52 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 app = FastAPI(title="Reflex", version="1.0.0", lifespan=lifespan)
 
+# Security headers middleware (must be first to apply to all responses)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    # HSTS - enforce HTTPS for 1 year, include subdomains, allow preload
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Clickjacking protection
+    response.headers["X-Frame-Options"] = "DENY"
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Permissions policy - restrict powerful features
+    response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+
+    # Content-Security-Policy per content type
+    ctype = response.headers.get("content-type", "")
+    path = request.url.path
+    if ctype.startswith("text/html"):
+        # HTML responses (unlikely for API, but defense in depth)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+    elif ctype.startswith("text/event-stream") or path == "/api/stream":
+        # SSE endpoint - allow EventSource from same origin
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'"
+        )
+    elif ctype.startswith("application/json"):
+        # JSON API responses - minimal CSP
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; "
+            "frame-ancestors 'none'"
+        )
+    return response
+
 # CORS: explicit origins from env (Settings.cors_origin_list) + regex for antideploy subdomains + localhost
 try:
     from reflex.core.settings import get_settings as _gs_cors

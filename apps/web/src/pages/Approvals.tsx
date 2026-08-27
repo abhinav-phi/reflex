@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ApprovalItem } from "../lib/api";
 import { api, post } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
@@ -12,7 +12,7 @@ import { formatINR, asPaise } from "../lib/format";
 export default function Approvals() {
   useStream();
   const qc = useQueryClient();
-  const [reason, setReason] = useState("");
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const q = useQuery({
     queryKey: ["approvals"],
     queryFn: () => api<{ items: ApprovalItem[] }>("/api/approvals"),
@@ -21,7 +21,7 @@ export default function Approvals() {
 
   const decide = useMutation({
     mutationFn: (v: { id: string; decision: "approve" | "decline" }) =>
-      post(`/api/approvals/${v.id}/decide`, { decision: v.decision, reason }),
+      post(`/api/approvals/${v.id}/decide`, { decision: v.decision, reason: reasons[v.id] || undefined }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["approvals"] }),
   });
 
@@ -69,20 +69,22 @@ export default function Approvals() {
 
               <input
                 placeholder="reason (recorded in the ledger)"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                value={reasons[a.id] ?? ""}
+                onChange={(e) => setReasons((r) => ({ ...r, [a.id]: e.target.value }))}
                 className="mt-12 w-full rounded-btn border border-cmd-border bg-black/30 px-12 py-8 text-sm outline-none focus:border-primary"
               />
               <div className="mt-12 flex gap-12">
                 <button
                   onClick={() => decide.mutate({ id: a.id, decision: "approve" })}
-                  className="rounded-btn bg-primary px-24 py-8 text-sm font-semibold hover:bg-primary-hover"
+                  disabled={decide.isPending}
+                  className="rounded-btn bg-primary px-24 py-8 text-sm font-semibold hover:bg-primary-hover disabled:opacity-50"
                 >
                   Approve → dispatch (Shield re-checks)
                 </button>
                 <button
                   onClick={() => decide.mutate({ id: a.id, decision: "decline" })}
-                  className="rounded-btn border border-red-500/70 px-24 py-8 text-sm font-semibold text-red-300 hover:bg-red-600/20"
+                  disabled={decide.isPending}
+                  className="rounded-btn border border-red-500/70 px-24 py-8 text-sm font-semibold text-red-300 hover:bg-red-600/20 disabled:opacity-50"
                 >
                   Decline — stop branch
                 </button>
@@ -96,12 +98,18 @@ export default function Approvals() {
 }
 
 function Countdown({ until }: { until: string }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
   const secs = Math.max(0, Math.round((new Date(until).getTime() - Date.now()) / 1000));
   const h = Math.floor(secs / 3600);
   const mnt = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
   return (
     <span className={secs < 600 ? "text-red-400" : "text-amber-300"} title="sim-time countdown">
-      ⏳ {h}h {mnt}m to auto-decline
+      ⏳ {h}h {mnt}m {s}s to auto-decline
     </span>
   );
 }

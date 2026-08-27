@@ -5,14 +5,15 @@ import type { LiveMetrics } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
 
 export default function Landing() {
-  // Real data for the hero mockup — same source as Dashboard, no hard-coded numbers.
-  // If unauthenticated the query will 401 and we fall back to illustrative copy.
-  const m = useQuery({
+  // Real data for the hero mockup — same source as Dashboard. Unauthenticated
+  // visitors get the illustrative preview values, clearly labeled as such.
+  const { data: m } = useQuery({
     queryKey: ["landing-metrics"],
     queryFn: () => api<LiveMetrics>("/api/metrics/live"),
     retry: false,
     refetchOnWindowFocus: false,
-  }).data;
+  });
+  const illustrative = !m;
 
   return (
     <div className="min-h-screen bg-background text-on-surface grid-bg selection:bg-secondary-container selection:text-on-secondary-container">
@@ -24,7 +25,7 @@ export default function Landing() {
         </Link>
         <div className="hidden md:flex items-center gap-8 font-mono text-label-mono uppercase">
           <a className="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#system">System</a>
-          <a className="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#proof">Proof</a>
+          <Link className="text-on-surface-variant font-medium hover:text-primary transition-colors" to="/results">Proof</Link>
           <a className="text-on-surface-variant font-medium hover:text-primary transition-colors" href="#principle">Principle</a>
         </div>
         <Link to="/dashboard" className="bg-primary-container text-on-primary-container font-mono text-label-mono uppercase px-6 py-3 rounded-full hover:bg-primary hover:text-on-primary transition-colors">
@@ -53,23 +54,23 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Hero mockup — real data when available, no dummy arrays */}
+          {/* Hero mockup — live data when logged in; illustrative preview otherwise */}
           <div className="relative w-full h-[500px] flex items-center justify-center lg:justify-end lg:pl-12 mt-16 lg:mt-0">
             <div className="bg-primary-container w-full max-w-[520px] rounded-[24px] p-8 warm-shadow-lg transform rotate-[-2deg] hover:rotate-0 transition-transform duration-500 border border-primary-fixed-dim">
               <div className="flex justify-between items-start mb-12">
                 <div className="flex flex-col gap-1">
                   <span className="font-mono text-[10px] uppercase text-on-primary-container tracking-widest">RECOVERY OVERVIEW</span>
-                  <span className="font-sans text-body-md text-on-primary font-medium">SipDaily / live command center</span>
+                  <span className="font-sans text-body-md text-on-primary font-medium">SipDaily / command center preview</span>
                 </div>
                 <div className="bg-secondary-container text-on-secondary-container font-mono text-[10px] uppercase px-3 py-1 rounded-full flex items-center gap-1 font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-on-secondary-container animate-pulse" /> LIVE
+                  <span className="w-1.5 h-1.5 rounded-full bg-on-secondary-container animate-pulse" /> {illustrative ? "PREVIEW" : "LIVE"}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-12 border-b border-on-primary-container/20 pb-8">
                 <div>
                   <span className="font-mono text-[10px] uppercase text-on-primary-container tracking-widest block mb-2">Recovered today</span>
                   <div className="font-display text-[32px] text-on-primary font-semibold leading-none mb-2">{m ? formatINR(asPaise(m.recovered_reflex_paise)) : "₹76,420"}</div>
-                  <span className="font-mono text-[10px] text-secondary-fixed">↑ 18.4% vs baseline</span>
+                  <span className="font-mono text-[10px] text-secondary-fixed">{m ? "live from /api/metrics" : "illustrative — sign in for live data"}</span>
                 </div>
                 <div>
                   <span className="font-mono text-[10px] uppercase text-on-primary-container tracking-widest block mb-2">Complaint rate</span>
@@ -83,10 +84,10 @@ export default function Landing() {
                   <span className="font-mono text-[10px] text-secondary-fixed">{m ? `${m.episodes_open} pending` : "04 pending"}</span>
                 </div>
                 <div className="w-full h-1.5 bg-on-primary-container/20 rounded-full mb-3 overflow-hidden">
-                  <div className="h-full bg-secondary-container rounded-full w-[72%]" />
+                  <div className={`h-full bg-secondary-container rounded-full ${m ? "" : "w-[72%]"}`} style={m ? { width: `${Math.min(100, Math.round((m.episodes_terminal / Math.max(1, m.episodes_terminal + m.episodes_open)) * 100))}%` } : undefined} />
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="font-mono text-[10px] text-on-primary-container">72% eligible recovery</span>
+                  <span className="font-mono text-[10px] text-on-primary-container">{m ? "share of episodes resolved" : "72% eligible recovery"}</span>
                   <span className="font-mono text-[10px] text-on-primary-container">EV ranked</span>
                 </div>
               </div>
@@ -95,36 +96,45 @@ export default function Landing() {
         </section>
 
         {/* Features */}
-        <section id="system" className="mt-32">
+        <section id="system" className="mt-32 scroll-mt-24">
           <div className="mb-12"><h2 className="font-mono text-label-mono uppercase text-on-tertiary-container tracking-widest">ONE SYSTEM, SIX GUARANTEES</h2></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            <div className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30">
+            <Link to="/dashboard" className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30 hover:border-primary/40 transition-colors cursor-pointer">
               <span className="font-mono text-label-mono text-on-tertiary-container">01</span>
               <h3 className="font-display text-headline-md text-primary">Bounded Autonomy</h3>
               <p className="font-sans text-body-md text-on-surface-variant">The agent operates strictly within mathematical guardrails you define. It optimizes for EV but halts if complaint rates spike.</p>
-            </div>
-            <div className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30">
+            </Link>
+            <Link to="/audit" className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30 hover:border-primary/40 transition-colors cursor-pointer">
               <span className="font-mono text-label-mono text-on-tertiary-container">02</span>
               <h3 className="font-display text-headline-md text-primary">Cryptographic Proof</h3>
               <p className="font-sans text-body-md text-on-surface-variant">Every action, decision, and communication is logged on an immutable ledger. Full auditability by design.</p>
-            </div>
-            <div className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30">
+            </Link>
+            <Link to="/results" className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30 hover:border-primary/40 transition-colors cursor-pointer">
               <span className="font-mono text-label-mono text-on-tertiary-container">03</span>
               <h3 className="font-display text-headline-md text-primary">Dynamic Tone Matching</h3>
               <p className="font-sans text-body-md text-on-surface-variant">Communications adapt to customer context. Empathy for genuine hardship, directness for chronic defaults.</p>
-            </div>
+            </Link>
           </div>
+        </section>
+
+        {/* Principle — anchor target for the nav "Principle" link */}
+        <section id="principle" className="mt-32 scroll-mt-24">
+          <div className="mb-12"><h2 className="font-mono text-label-mono uppercase text-on-tertiary-container tracking-widest">PRINCIPLE</h2></div>
+          <blockquote className="border-l-4 border-primary pl-8">
+            <p className="font-display text-headline-sm md:text-headline-md text-primary max-w-3xl">“The cheapest revenue to acquire is the revenue you already earned.”</p>
+            <p className="mt-6 font-sans text-body-md text-on-surface-variant max-w-2xl">Recovery should never cost more trust than it earns money. Reflex proves every action was bounded, justified, and reversible — that is the whole product.</p>
+          </blockquote>
         </section>
       </main>
 
       <footer className="flex flex-col md:flex-row justify-between items-center px-margin py-8 w-full max-w-7xl mx-auto border-t border-outline-variant mt-32">
         <div className="font-display text-headline-sm text-primary mb-4 md:mb-0">Reflex</div>
-        <div className="font-sans text-body-md text-on-surface-variant text-center md:text-left mb-4 md:mb-0">© 2024 Reflex Payment Recovery. All rights reserved.</div>
+        <div className="font-sans text-body-md text-on-surface-variant text-center md:text-left mb-4 md:mb-0">© {new Date().getFullYear()} Reflex Payment Recovery. All rights reserved.</div>
         <div className="flex gap-6 font-sans text-body-md text-on-surface-variant">
           <a className="hover:text-primary transition-colors" href="#system">System</a>
-          <a className="hover:text-primary transition-colors" href="#proof">Proof</a>
+          <Link className="hover:text-primary transition-colors" to="/results">Proof</Link>
           <a className="hover:text-primary transition-colors" href="#principle">Principle</a>
-          <a className="hover:text-primary transition-colors" href="#">Contact Support</a>
+          <a className="hover:text-primary transition-colors" href="mailto:support@reflex.dev">Contact Support</a>
         </div>
       </footer>
     </div>

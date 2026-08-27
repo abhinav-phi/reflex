@@ -1,18 +1,32 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { post } from "../lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { api, post } from "../lib/api";
 import { useUi } from "../store";
 import { SimulatedBadge, TestModeBadge } from "./Chips";
 
 export function ControlBar() {
   const qc = useQueryClient();
-  const { mode, setMode, banner, setBanner, sseConnected, lastEventAt } = useUi();
+  const { mode, setMode, banner, setBanner, sseConnected } = useUi();
+  const [confirmHalt, setConfirmHalt] = useState(false);
+
+  // Sync the mode pill from the API on load — SSE only updates it on changes,
+  // so a fresh page load would otherwise show a stale default (advisory).
+  const metrics = useQuery({
+    queryKey: ["metrics"],
+    queryFn: () => api<{ mode: string; llm_outage?: boolean }>("/api/metrics/live"),
+    refetchInterval: 5000,
+  });
+  useEffect(() => {
+    if (metrics.data?.mode) setMode(metrics.data.mode);
+  }, [metrics.data?.mode, setMode]);
 
   const modeMut = useMutation({
-    mutationFn: (m: string) => post("/api/control/mode", { mode: m }),
+    mutationFn: (m: string) => post("/api/control/mode", { mode: m, reason: m === "halted" ? "kill switch" : "resume from control bar" }),
     onSuccess: (_d, m) => {
       setMode(m);
       if (m === "halted") setBanner({ kind: "HALTED" });
-      else setBanner({ kind: null });
+      else setBanner({ kind: metrics.data?.llm_outage ? "DEGRADED" : null });
+      setConfirmHalt(false);
       void qc.invalidateQueries();
     },
   });
@@ -30,7 +44,7 @@ export function ControlBar() {
         <div className="hidden md:flex items-center gap-2">
           <SimulatedBadge />
           <TestModeBadge />
-          <span className="bg-outline-variant text-on-surface rounded-full px-3 py-1 flex items-center font-mono text-[10px] tracking-widest">MODE: {mode.toUpperCase()}</span>
+          <span className={`rounded-full px-3 py-1 flex items-center font-mono text-[10px] tracking-widest ${halted ? "bg-error-container text-error" : banner.kind === "DEGRADED" ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-outline-variant text-on-surface"}`}>MODE: {mode.toUpperCase()}</span>
         </div>
 
         <nav className="hidden md:flex gap-6 ml-4">
@@ -53,22 +67,24 @@ export function ControlBar() {
         <div className="ml-auto flex items-center gap-3 md:gap-4">
           <span className={`hidden md:inline-flex items-center gap-1.5 text-[10px] font-mono ${sseConnected ? "text-secondary" : "text-outline"}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${sseConnected ? "bg-secondary" : "bg-outline"} ${sseConnected ? "animate-pulse" : ""}`} />
-            {sseConnected ? "LIVE" : `connecting${lastEventAt ? ` (${new Date(lastEventAt).toLocaleTimeString()})` : ""}`}
+            {sseConnected ? "connected" : "connecting…"}
           </span>
           <button
-            onClick={() => modeMut.mutate(halted ? "advisory" : "halted")}
-            className={`hidden md:inline-flex font-mono text-label-mono border rounded-full px-4 py-1.5 uppercase transition-colors ${halted ? "border-secondary text-secondary hover:bg-secondary-container/20" : "border-on-tertiary-container text-on-tertiary-container hover:bg-error-container"}`}
+            onClick={() => (halted ? modeMut.mutate("advisory") : setConfirmHalt(true))}
+            disabled={modeMut.isPending}
+            className={`hidden md:inline-flex font-mono text-label-mono border rounded-full px-4 py-1.5 uppercase transition-colors disabled:opacity-50 ${halted ? "border-secondary text-secondary hover:bg-secondary-container/20" : "border-on-tertiary-container text-on-tertiary-container hover:bg-error-container"}`}
             aria-live={halted ? "assertive" : "polite"}
           >
-            Kill switch
+            {halted ? "Resume" : "Kill switch"}
           </button>
           <button
-            onClick={() => modeMut.mutate(halted ? "advisory" : "halted")}
-            className="md:hidden px-4 py-2 rounded-full border border-error text-error font-mono text-label-mono hover:bg-error/10 transition-colors"
+            onClick={() => (halted ? modeMut.mutate("advisory") : setConfirmHalt(true))}
+            disabled={modeMut.isPending}
+            className="md:hidden px-4 py-2 rounded-full border border-error text-error font-mono text-label-mono hover:bg-error/10 transition-colors disabled:opacity-50"
           >
-            Kill switch
+            {halted ? "Resume" : "Kill switch"}
           </button>
-          <a href="/ops" className="text-primary hover:text-primary-container transition-colors" aria-label="Settings">
+          <a href="/ops" className="text-primary hover:text-primary-container transition-colors" aria-label="Ops settings">
             <span className="material-symbols-outlined">settings</span>
           </a>
         </div>
@@ -79,6 +95,21 @@ export function ControlBar() {
       )}
       {halted && (
         <div className="border-t border-error/60 bg-error-container px-4 md:px-margin py-3 text-center text-xs font-semibold text-on-error-container">HALTED — kill switch active · scheduled actions cancelled · deliberate re-enable required</div>
+      )}
+
+      {confirmHalt && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Confirm kill switch">
+          <div className="w-full max-w-md rounded-2xl border border-error/40 bg-surface-container-lowest p-8 warm-shadow-lg">
+            <h2 className="font-display text-headline-sm text-error">Halt all actions immediately?</h2>
+            <p className="mt-4 text-sm text-on-surface-variant">Scheduled actions are cancelled, episodes drain to HALTED, and dispatch stops everywhere. Resuming requires a deliberate click — this is the bounded-autonomy emergency stop.</p>
+            <div className="mt-8 flex justify-end gap-3">
+              <button onClick={() => setConfirmHalt(false)} className="rounded-full border border-outline-variant px-6 py-2 text-sm text-on-surface-variant hover:text-on-surface">Cancel</button>
+              <button onClick={() => modeMut.mutate("halted")} disabled={modeMut.isPending} className="rounded-full bg-error text-on-error-container px-6 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50">
+                {modeMut.isPending ? "Halting…" : "Confirm halt"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

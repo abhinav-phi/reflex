@@ -1,4 +1,7 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { ActionDto, EpisodeDetail } from "../lib/api";
+import { post } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
 import { Chip } from "./Chips";
 
@@ -67,6 +70,19 @@ export function EpisodeDrawerContent({
   onOpenEv: (a: ActionDto) => void;
   onOpenLedger: () => void;
 }) {
+  const qc = useQueryClient();
+  const [escMsg, setEscMsg] = useState<string | null>(null);
+  const escalate = useMutation({
+    mutationFn: () => post(`/api/episodes/${ep.id}/escalate`, {}),
+    onSuccess: () => {
+      setEscMsg("escalated → moved to the human approval queue");
+      void qc.invalidateQueries({ queryKey: ["episode", ep.id] });
+      void qc.invalidateQueries({ queryKey: ["episodes"] });
+      void qc.invalidateQueries({ queryKey: ["approvals"] });
+    },
+    onError: (e) => setEscMsg(e instanceof Error ? e.message : "escalation failed"),
+  });
+
   return (
     <div className="px-6 md:px-24 pb-8 md:pb-32 pt-6 md:pt-16 text-sm">
       <div className="flex items-baseline justify-between">
@@ -80,7 +96,7 @@ export function EpisodeDrawerContent({
         {ep.diagnoses.length === 0 && <p className="mt-4 text-on-surface-variant">in progress…</p>}
         {ep.diagnoses.map((d, i) => (
           <div key={i} className="mt-4 flex items-center gap-3 md:gap-8 rounded-xl border border-outline-variant bg-surface-container p-4 md:p-3">
-            {d.method === "rule" ? <Chip title="rules match">{d.canonical_code}</Chip> : <Chip tone="violet" title={`LLM conf ${d.confidence}`}>✦ LLM · {d.confidence.toFixed(2)}</Chip>}
+            {d.method === "rule" ? <Chip title="rules match">{d.canonical_code}</Chip> : <Chip tone="lime" title={`LLM conf ${d.confidence}`}>✦ LLM · {d.confidence.toFixed(2)}</Chip>}
             <span className="text-[12px] text-on-surface">{d.rationale}</span>
           </div>
         ))}
@@ -130,6 +146,18 @@ export function EpisodeDrawerContent({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-8 md:mt-16">
+        <h3 className="font-mono text-[11px] uppercase tracking-wide text-on-surface-variant">Human handoff</h3>
+        <button
+          onClick={() => escalate.mutate()}
+          disabled={escalate.isPending}
+          className="mt-4 w-full rounded-full border border-secondary px-4 py-3 text-xs font-semibold text-secondary hover:bg-secondary-container/20 disabled:opacity-50"
+        >
+          {escalate.isPending ? "escalating…" : "Escalate manually → human approval queue"}
+        </button>
+        {escMsg && <p className="mt-3 font-mono text-[11px] text-on-surface-variant">{escMsg}</p>}
       </section>
     </div>
   );

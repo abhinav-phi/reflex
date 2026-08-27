@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -26,6 +27,23 @@ export default function Results() {
     queryFn: () => api<{ "[SIMULATED]": boolean; runs: EvalRunDto[] }>("/api/metrics/eval"),
     refetchInterval: 5000,
   });
+
+  const [runMsg, setRunMsg] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  async function runEval() {
+    setRunning(true);
+    setRunMsg(null);
+    try {
+      await post("/api/eval/run", {});
+      setRunMsg("eval run started — the table refreshes when the run commits");
+      setTimeout(() => void q.refetch(), 8000);
+    } catch (e) {
+      setRunMsg(e instanceof Error ? e.message : "eval run failed");
+    } finally {
+      setRunning(false);
+    }
+  }
 
   const runs = q.data?.runs ?? [];
   // latest official protocol run per (arm, ablation)
@@ -59,10 +77,6 @@ export default function Results() {
       })),
     );
 
-  async function runEval() {
-    await post("/api/eval/run", {});
-  }
-
   return (
     <div className="min-h-screen bg-background text-on-surface">
       <ControlBar />
@@ -72,8 +86,10 @@ export default function Results() {
             <h1 className="flex items-center gap-3 font-display text-headline-md text-primary">Evaluation results <SimulatedBadge /></h1>
             <p className="mt-2 font-mono text-label-mono text-on-surface-variant">Pre-registered protocol · seeds {"{42, 1337, 2025}"} · bootstrap 95% CI (1,000 resamples)</p>
           </div>
-          <button onClick={() => void runEval()} className="rounded-full bg-primary-container text-on-primary px-6 py-3 text-xs font-mono font-semibold hover:bg-primary">▶ Run eval (protocol-tagged)</button>
+          <button onClick={() => void runEval()} disabled={running} className="rounded-full bg-primary-container text-on-primary px-6 py-3 text-xs font-mono font-semibold hover:bg-primary disabled:opacity-50">{running ? "starting…" : "▶ Run eval (protocol-tagged)"}</button>
         </header>
+
+        {runMsg && <p className="mt-4 font-mono text-[11px] text-on-surface-variant">{runMsg}</p>}
 
         {runs.length === 0 && <div className="mt-8 md:mt-24 rounded-xl border border-dashed border-outline-variant p-8 md:p-12 text-center text-sm text-on-surface-variant bg-surface-container-lowest warm-shadow">No evaluation runs yet. <code>./eval/reproduce.sh</code> or press Run — protocol pre-registered.</div>}
 

@@ -66,6 +66,19 @@ def live(request: Request, arm: str | None = Query(default=None), user: dict[str
             {"arm": arm},
         ).scalar()
         mode_row = s.execute(text("SELECT mode::text FROM runtime.merchants ORDER BY created_at LIMIT 1")).scalar()
+        merchant_row = s.execute(
+            text("SELECT name, cfg FROM runtime.merchants ORDER BY created_at LIMIT 1")
+        ).first()
+        # Shield card live state: actions dispatched since local midnight (contacts)
+        try:
+            contacts_today = s.execute(
+                text(
+                    "SELECT count(*) FROM runtime.actions a "
+                    "WHERE a.dispatched_at >= date_trunc('day', now())"
+                )
+            ).scalar()
+        except Exception:
+            contacts_today = 0
         redis = request.app.state.redis
         speed = 1.0
         try:
@@ -77,6 +90,7 @@ def live(request: Request, arm: str | None = Query(default=None), user: dict[str
         counters = {k: int(redis.get(f"reflex:ctr:{k}") or 0) for k in COUNTER_KEYS}
 
         recovered_val = int(recovered_reflex or 0)
+        cfg = dict(merchant_row[1] or {}) if merchant_row else {}
         return {
             "failed_today_paise": int(failed or 0),
             "recovered_reflex_paise": recovered_val,
@@ -88,6 +102,10 @@ def live(request: Request, arm: str | None = Query(default=None), user: dict[str
             "speed": speed,
             "mode": str(mode_row or "advisory"),
             "llm_outage": bool(redis.get("reflex:inject:llm_outage")) if hasattr(redis, "get") else False,
+            "merchant_name": str(merchant_row[0]) if merchant_row else None,
+            "contacts_today": int(contacts_today or 0),
+            "contacts_per_day": int(cfg.get("contacts_per_day", 2)),
+            "quiet_hours": str(cfg.get("quiet_hours", "21:00-09:00")),
             "counters": counters,
         }
     finally:
