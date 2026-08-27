@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-body { font-feature-settings: 'tnum' 1; }
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background: #faf9f3;
+  color: #1b1c19;
+  font-feature-settings: 'tnum' 1;
+}
 .tabular-nums { font-variant-numeric: tabular-nums; }
+.grid-bg {
+  background-image: linear-gradient(to right, rgba(22,38,29,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(22,38,29,0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.bg-grid-paper {
+  background-image: linear-gradient(to right, #e3e3dd 1px, transparent 1px), linear-gradient(to bottom, #e3e3dd 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.warm-shadow { box-shadow: 0 4px 20px rgba(22,38,29,0.06); }
+.warm-shadow-lg { box-shadow: 0 12px 40px rgba(22,38,29,0.12); }
+.shadow-warm-ambient { box-shadow: 0 4px 20px rgba(22,38,29,0.06); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

@@ -49,6 +49,9 @@ playwright-report/
 /I.java
 *.tsbuildinfo
 
+# Figma source (local only, never commit)
+figma/
+
 # Eval run logs (local)
 /eval_run_*.log
 coverage/
