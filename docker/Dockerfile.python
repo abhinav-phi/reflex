@@ -10,8 +10,6 @@ COPY data ./data
 COPY apps/api ./apps/api
 COPY apps/workers ./apps/workers
 COPY apps/eval ./apps/eval
-COPY alembic ./alembic
-COPY alembic.ini ./
 
 RUN pip install -e .
 
