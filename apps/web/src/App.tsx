@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { getToken } from "./lib/api";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import Approvals from "./pages/Approvals";
 import Results from "./pages/Results";
 import Audit from "./pages/Audit";
@@ -23,7 +24,7 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to={getToken() ? "/dashboard" : "/login"} replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/onboarding" element={<Protected><Onboarding /></Protected>} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
