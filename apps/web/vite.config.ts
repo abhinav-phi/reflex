@@ -7,7 +7,10 @@ export default defineConfig(({ mode }) => {
   // Check both .env files (loadEnv) and process.env (Vercel/Railway build
   // env vars are injected as process.env, which loadEnv does not guarantee
   // to merge).
-  if (mode === "production") {
+  // GitHub Actions runs `npm run build` purely as a compile gate — that
+  // bundle is never deployed (Vercel builds from git with the project env
+  // var), so the guard would fail there for no reason.
+  if (mode === "production" && process.env.GITHUB_ACTIONS !== "true") {
     const env = loadEnv(mode, process.cwd(), "");
     const apiBase = env.VITE_REFLEX_API ?? env.VITE_API_URL ?? process.env.VITE_REFLEX_API ?? process.env.VITE_API_URL;
     if (!apiBase) {
