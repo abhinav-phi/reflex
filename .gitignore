@@ -55,3 +55,10 @@ figma/
 # Eval run logs (local)
 /eval_run_*.log
 coverage/
+.vercel
+.env*
+.agents
+.claude
+
+# Agent tooling lock (local machine only, never publish)
+skills-lock.json

@@ -30,13 +30,14 @@ agent (database role separation).
   actuals are **31.27% / 21.22% / 4.68%**. The G1 gate (≥ +15 pp incremental over naive) was
   **MISSED at +10.05 pp [+7.68, +12.56]** and is reported verbatim — never tuned away.
 - The CI excludes zero, so the effect is real; it is smaller than the aspirational target.
-- **Two runs, reported honestly:** the official citable run (`eval/results/20260826T105147Z/`)
-  executed **WITHOUT a key** — the reflex arm is the rules-first path end-to-end. The
-  **Amendment-2 keyed rerun** (2026-08-26; `x-preview-f-free`, temperature 0, valid parses
-  confirmed) measured the LLM tail at **zero delta**: the model honestly classified every
-  synthetic ambiguous-tail string as UNKNOWN_AMBIGUOUS — matching the conservative fallback.
-  Safety proven under real provider conditions; differentiation requires real-world decline
-  strings. Full honest record: `docs/limitations.md`.
+- **The official run WAS keyed (honest AI result):** the Amendment-2 official run (2026-08-26,
+  72,000 episode-runs) executed WITH a working LLM key (`x-preview-f-free`, temperature 0,
+  valid schema-compliant parses confirmed) — measured result: the LLM tail adds **ZERO**
+  recovery-rate delta on this synthetic corpus. The model honestly classified every synthetic
+  ambiguous-tail string as UNKNOWN_AMBIGUOUS — matching the conservative fallback — so reflex
+  ≡ A1 ≡ DEGRADED at 31.27% (safety proven under real provider conditions; differentiation
+  requires real-world decline strings). A pre-keyed attempt is acknowledged in §3 of
+  `docs/limitations.md`; per G5 both runs produced byte-identical per-seed results.
 
 ## Architecture
 
@@ -78,8 +79,8 @@ byte-identical per-seed results.
 
 ## Measured results (official pre-registered run, ALL [SIMULATED])
 
-Protocol `eval-preregistered-v1` (Amendment 2: deterministic eval clock; the keyed LLM-tail
-rerun is described in `docs/limitations.md` §3b), N=3,000 episodes × seeds {42, 1337, 2025} ×
+Protocol `eval-preregistered-v1` (Amendment 2: deterministic eval clock; the keyed run's LLM-tail
+outcome is described in `docs/limitations.md` §3b), N=3,000 episodes × seeds {42, 1337, 2025} ×
 8 arms, bootstrap 95% CIs (1,000 episode-level resamples). Artifacts:
 `eval/results/20260826T105147Z/`.
 
