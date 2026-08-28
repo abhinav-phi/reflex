@@ -43,19 +43,32 @@ def _load_migration(name: str):  # type: ignore[no-untyped-def]
     """Import an alembic migration module, injecting a fake `alembic` package."""
     import types
 
-    alembic_pkg = types.ModuleType("alembic")
+    # Build a fake alembic.op module with execute() and get_bind()
     op_holder: dict[str, _FakeOp | None] = {"op": None}
 
     class _FakeOpModule(types.ModuleType):
-        @property
-        def op(self):  # type: ignore[no-untyped-def]
+        """This module does double duty as alembic.op and as the `op` object."""
+
+        def execute(self, sql: str) -> None:  # type: ignore[no-untyped-def]
             if op_holder["op"] is None:
                 raise RuntimeError("op not bound yet")
-            return op_holder["op"]
+            op_holder["op"].execute(sql)
 
-    op_module = _FakeOpModule("alembic.op")
-    sys.modules.setdefault("alembic", alembic_pkg)
-    sys.modules.setdefault("alembic.op", op_module)
+        def get_bind(self):  # type: ignore[no-untyped-def]
+            if op_holder["op"] is None:
+                raise RuntimeError("op not bound yet")
+            return op_holder["op"].get_bind()
+
+    op_mod = _FakeOpModule("alembic.op")
+
+    # Thread the fake alembic package into sys.modules so that
+    # `from alembic import op` resolves to op_mod, and
+    # `from alembic import op as op` (which is the same) works.
+    alembic_pkg = types.ModuleType("alembic")
+    alembic_pkg.__path__ = []  # type: ignore[attr-defined]  # mark as a package
+    alembic_pkg.op = op_mod  # from alembic import op ✓
+    sys.modules["alembic"] = alembic_pkg
+    sys.modules["alembic.op"] = op_mod
 
     path = _REPO_ROOT / "alembic" / "versions" / f"{name}.py"
     spec = importlib.util.spec_from_file_location(f"alembic.versions.{name}", path)
@@ -107,9 +120,6 @@ def maybe_seed(conn) -> None:  # type: ignore[no-untyped-def]
 
 def bootstrap(engine) -> None:  # type: ignore[no-untyped-def]
     """Create schema + seed if the app is starting against an empty database."""
-    # Only auto-bootstrap when DATABASE_URL is set (skip local defaults)
-    if not os.environ.get("DATABASE_URL"):
-        return
     conn = None
     try:
         conn = engine.connect()

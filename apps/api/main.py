@@ -63,8 +63,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         from reflex.api.db import agent_engine
 
         _bootstrap(agent_engine())
-    except Exception:
-        log.warning("bootstrap_skipped")
+    except Exception as exc:
+        log.warning("bootstrap_skipped", error=str(exc)[:200])
     # Auto-seed for cloud deploys (Antideploy) - if users table empty, seed it so login works without manual console
     try:
         from reflex.api.db import agent_sessionmaker as _agent_mk

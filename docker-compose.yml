@@ -36,6 +36,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
       DATABASE_URL_ADMIN: postgresql+psycopg://postgres:reflex_dev_pg@postgres:5432/reflex
+      # Keep the migration's role provisioning on the dev passwords the
+      # compose DATABASE_URLs use (else _ensure_role resets to secure defaults).
+      REFLEX_AGENT_PW: agent_dev_pw
+      REFLEX_EVAL_PW: eval_dev_pw
+      REFLEX_ADMIN_PW: admin_dev_pw
       # Must be explicit: without it the cloud fallback makes EVAL inherit the
       # reflex_agent role, which has no grants on the replay schema (ADR-004),
       # so POST /api/replay/start fails with "permission denied for schema replay".
@@ -61,6 +66,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
+      REFLEX_AGENT_PW: agent_dev_pw
+      REFLEX_EVAL_PW: eval_dev_pw
       REDIS_URL: redis://redis:6379/0
     depends_on:
       api: { condition: service_healthy }
@@ -74,6 +81,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
       DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
+      REFLEX_AGENT_PW: agent_dev_pw
+      REFLEX_EVAL_PW: eval_dev_pw
       REDIS_URL: redis://redis:6379/0
     depends_on:
       api: { condition: service_healthy }
@@ -87,6 +96,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://reflex_agent:agent_dev_pw@postgres:5432/reflex
       DATABASE_URL_EVAL: postgresql+psycopg://reflex_eval:eval_dev_pw@postgres:5432/reflex
+      REFLEX_AGENT_PW: agent_dev_pw
+      REFLEX_EVAL_PW: eval_dev_pw
       REDIS_URL: redis://redis:6379/0
     depends_on:
       api: { condition: service_healthy }
