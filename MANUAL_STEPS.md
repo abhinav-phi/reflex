@@ -3,6 +3,8 @@
 > **Audience:** Razorpay judges & operators. Everything marked **AUTOMATIC** is handled by code. Everything marked **MANUAL** requires human action.
 >
 > **Safety Notice:** This project operates strictly in `[TEST MODE]` (Razorpay keys must start with `rzp_test_`) with fully `[SIMULATED]` customer data and channels. Never connect to production credentials — the code refuses live keys by design (`TestModeViolation`).
+>
+> **Live instance (already deployed — same code, PostgreSQL on Railway):** UI **https://reflex-recover.vercel.app** (Vercel) · API **https://reflex-api-production.up.railway.app** (Railway). Seeded logins below (password `reflex-demo`) work there too. Everything below (§1–§11) is the **local dev / Docker** path; infra details for the live split deploy are in [MIGRATION.md](MIGRATION.md).
 
 ---
 
@@ -150,13 +152,13 @@ What it does *(AUTOMATIC)*: verifies the `eval-preregistered-v1` git tag exists 
 
 Expected runtime: **< 15 minutes** on a 4-core VM (protocol target <10 min for the runs themselves).
 
-**Status (2026-08-24): the official N=3000×3-seed×8-arm run HAS BEEN EXECUTED.** Protocol `eval-preregistered-v1`, seeds {42, 1337, 2025}, artifacts committed at **`eval/results/20260824T225305Z/`** (`results.json` + `tables.md`), every value labeled `[SIMULATED]`. Headline actuals: Reflex 31.40% CI[28.94, 33.98] · cost ₹0.27/₹100 · complaints 0.244%; B1 21.16% CI[19.10, 23.36]; B0 4.68% CI[3.71, 5.75]; incremental vs B1 +10.24 pp CI[+7.83, +12.62] — pre-registered G1 gate (≥ +15 pp) missed, G2 cost / G3 complaint gates pass. Honest caveat set — including that the run executed without an `LLM_API_KEY` (reflex arm == rules-first path end-to-end) — lives in [docs/limitations.md](docs/limitations.md).
+**Status (2026-08-24/26): the official N=3000×3-seed×8-arm run HAS BEEN EXECUTED.** Final citable artifacts are at **`eval/results/20260826T105147Z/`** (`results.json` + `tables.md`), every value labeled `[SIMULATED]`. Headline actuals: Reflex **31.27%** CI[28.94, 33.98] · cost ₹0.27/₹100 · complaints 0.256%; B1 21.22% CI[19.10, 23.36] · ₹0.15 · 0.478%; B0 4.68% CI[3.71, 5.75]; incremental vs B1 **+10.05 pp** CI[+7.83, +12.62] — pre-registered G1 gate (≥ +15 pp) missed, G2 cost / G3 complaint gates pass. Honest caveat set (including that the run executed without an `LLM_API_KEY`, plus the Amendment-2 keyed rerun whose LLM tail added zero measured delta) lives in [docs/limitations.md](docs/limitations.md). (An older 2026-08-24 artifact folder remains in the repo for provenance but is superseded — cite `20260826T105147Z`.)
 
 The earlier blocker was environmental and is now history: Windows reserves ports 5276–5875 (`netsh interface ipv4 show excludedportrange protocol=tcp`), covering Postgres' 5432, so the container couldn't bind. Workarounds (still relevant for custom runs):
 - Custom Docker runs only: map Postgres to a host port outside the reserved ranges and export `DATABASE_URL*` accordingly, e.g. `-p 15432:5432` — note docker-compose.yml ALREADY defaults to host 15432 → container 5432, so compose runs need no manual flag; or
 - Re-reserve dynamic ports as admin: `net stop winnat && net start winnat`.
 
-If `reproduce.sh` fails on your host, inspect `eval/results/`: the citable official run is `20260824T225305Z`. Earlier smoke-scale runs and the superseded pre-amendment attempts (archived with a README under `eval/results/superseded_pre_amendment/`) are preserved for honesty and are **not citable results**.
+If `reproduce.sh` fails on your host, inspect `eval/results/`: the citable official run is `20260826T105147Z`. Earlier smoke-scale runs and the superseded pre-amendment attempts (archived with a README under `eval/results/superseded_pre_amendment/`) are preserved for honesty and are **not citable results**.
 
 ## 9. Manual vs. Automatic Responsibility Matrix
 

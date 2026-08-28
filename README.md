@@ -13,11 +13,12 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-164%20passing-brightgreen?style=flat-square)](#evaluation--pre-registered-metrics)
 
-**[Live Demo Video](#)** · **[Contributing Guide](CONTRIBUTING.md)** · **[Operator Runbook](MANUAL_STEPS.md)**
+**[Live Demo](https://reflex-recover.vercel.app)** · **[Contributing Guide](CONTRIBUTING.md)** · **[Operator Runbook](MANUAL_STEPS.md)** · **[Deployment Guide](MIGRATION.md)**
 
 ---
 
 ## Table of Contents
+- [Live Deployment](#live-deployment)
 - [The Problem: Why Subscriptions Leak Revenue](#the-problem-why-subscriptions-leak-revenue)
 - [How Reflex Solves It (AI vs. Deterministic)](#how-reflex-solves-it-ai-vs-deterministic)
 - [System Architecture](#system-architecture)
@@ -30,6 +31,19 @@
 - [License](#license)
 
 ---
+
+## Live Deployment
+
+A live instance of the exact code in this repo is running end-to-end (all data `[SIMULATED]`, Razorpay TEST MODE):
+
+| App | URL | Platform |
+|---|---|---|
+| Command center (React) | **https://reflex-recover.vercel.app** | Vercel (static build, SPA) |
+| API (FastAPI + PostgreSQL) | https://reflex-api-production.up.railway.app | Railway (Docker, always-on) |
+
+Seeded logins (password `reflex-demo`): `admin@reflex.dev` · `approver@reflex.dev` · `operator@reflex.dev` · `viewer@reflex.dev`. The API runs the embedded worker threads + in-memory event broker in a single container; the **PostgreSQL** database backs every ledger/approval/episode row — see [MIGRATION.md](MIGRATION.md) for how the split deploy is wired (Vercel build env `VITE_REFLEX_API`, Railway `DATABASE_URL`, CORS origins for `*.vercel.app`/`*.railway.app`).
+
+> ⚠️ The production frontend build **refuses to compile without `VITE_REFLEX_API`** (`apps/web/vite.config.ts` guard) — the same-origin 405 regression can't happen again. GitHub Actions skips the guard (its bundle is never deployed).
 
 ## The Problem: Why Subscriptions Leak Revenue
 

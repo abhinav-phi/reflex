@@ -30,11 +30,13 @@ agent (database role separation).
   actuals are **31.27% / 21.22% / 4.68%**. The G1 gate (≥ +15 pp incremental over naive) was
   **MISSED at +10.05 pp [+7.68, +12.56]** and is reported verbatim — never tuned away.
 - The CI excludes zero, so the effect is real; it is smaller than the aspirational target.
-- The official keyed run executed WITH a working LLM key (`x-preview-f-free`, temperature 0):
-  the model honestly classified every synthetic ambiguous-tail string as UNKNOWN_AMBIGUOUS —
-  matching the conservative fallback — so the LLM tail adds zero measured recovery delta today
-  (safety demonstrated; differentiation requires real-world decline strings). Full honest
-  record: `docs/limitations.md`.
+- **Two runs, reported honestly:** the official citable run (`eval/results/20260826T105147Z/`)
+  executed **WITHOUT a key** — the reflex arm is the rules-first path end-to-end. The
+  **Amendment-2 keyed rerun** (2026-08-26; `x-preview-f-free`, temperature 0, valid parses
+  confirmed) measured the LLM tail at **zero delta**: the model honestly classified every
+  synthetic ambiguous-tail string as UNKNOWN_AMBIGUOUS — matching the conservative fallback.
+  Safety proven under real provider conditions; differentiation requires real-world decline
+  strings. Full honest record: `docs/limitations.md`.
 
 ## Architecture
 
@@ -74,19 +76,20 @@ tuned (documented grid search in `eval/results/b1_tuning.json`). A losing cohort
 Reproduction is proven: two complete independent official runs on different days produced
 byte-identical per-seed results.
 
-## Measured results (official keyed deterministic run, ALL [SIMULATED])
+## Measured results (official pre-registered run, ALL [SIMULATED])
 
-Protocol `eval-preregistered-v1` (Amendment 2: deterministic eval clock + keyed LLM tail),
-N=3,000 episodes × seeds {42, 1337, 2025} × 8 arms, bootstrap 95% CIs (1,000 episode-level
-resamples). Artifacts: `eval/results/20260826T105147Z/`.
+Protocol `eval-preregistered-v1` (Amendment 2: deterministic eval clock; the keyed LLM-tail
+rerun is described in `docs/limitations.md` §3b), N=3,000 episodes × seeds {42, 1337, 2025} ×
+8 arms, bootstrap 95% CIs (1,000 episode-level resamples). Artifacts:
+`eval/results/20260826T105147Z/`.
 
 | Arm | Recovery % [95% CI] | Cost / ₹100 | Complaints | Median TTR |
 |---|---|---|---|---|
 | B0 do-nothing | 4.68 [3.71, 5.75] | — | 0% | 35.7 h |
-| B1 tuned naive | 21.22 [19.15, 23.46] | ₹0.15 | 0.478% | 5.0 h |
-| **Reflex** | **31.27 [28.91, 33.9]** | **₹0.27** | **0.256%** | **10.3 h** |
+| B1 tuned naive | 21.22 [19.10, 23.36] | ₹0.15 | 0.478% | 5.0 h |
+| **Reflex** | **31.27 [28.94, 33.98]** | **₹0.27** | **0.256%** | **10.3 h** |
 
-- Incremental recovery vs B1: **+10.05 pp [+7.68, +12.56]** (CI excludes zero).
+- Incremental recovery vs B1: **+10.05 pp [+7.83, +12.62]** (CI excludes zero).
 - Gate scorecard: G2 cost ≤ ₹3.5 **PASS** · G3 complaints < 0.5% **PASS** · G5 same-seed
   reproduction **PASS (proven)** · **G1 ≥ +15 pp MISSED at +10.05 pp — reported honestly** ·
   G6 vacuous without LLM differentiation.
@@ -155,6 +158,20 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 6. Read `docs/limitations.md` before repeating ANY metric — especially the G1 miss and the
    A2 anomaly.
 
+## Deployment (live)
+
+A live instance of this exact code runs end-to-end (all data [SIMULATED], TEST MODE):
+
+- **UI:** https://reflex-recover.vercel.app (Vercel static SPA)
+- **API:** https://reflex-api-production.up.railway.app (Railway Docker container: FastAPI +
+  embedded workers + in-memory event broker + **PostgreSQL** via `DATABASE_URL`)
+
+Logins (password `reflex-demo`): `admin@reflex.dev` / `approver@` / `operator@` / `viewer@`.
+Infra wiring (Vercel build env `VITE_REFLEX_API`, Railway `DATABASE_URL`, CORS for
+`*.vercel.app`/`*.railway.app`, `${PORT:-8000}` Dockerfile) is documented in `MIGRATION.md`.
+The production build refuses to compile without `VITE_REFLEX_API` (same-origin regression guard);
+GitHub Actions skips that guard because its bundle is never deployed.
+
 ## Known limitations (summary)
 
 - G1 (incremental ≥ +15 pp) MISSED at +10.05 pp — real effect, smaller than target.
@@ -163,7 +180,8 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 - A2 EV-off anomaly (36.35% > 31.27%) pending v2 prior recalibration.
 - Same-seed reproduction drift existed pre-TASK-061; fixed and re-proven (see G5 above).
 - Live Razorpay test-mode observation of the duplicate-payment-link guard still owed.
-- No live deployment; channels simulated; pitch video pending.
+- Live deployment exists (Vercel UI + Railway API, [SIMULATED] data); real-key LLM tail
+  differentiation and a produced pitch video still pending.
 
 ## Non-goals
 

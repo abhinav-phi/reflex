@@ -3,11 +3,21 @@
 Old home (Antideploy) works but its Cloudflare edge rate-limits bursts by IP.
 This doc is the self-service path to the split setup.
 
+## Current live deployment (2026-08-28)
+
+| App | URL | Platform |
+|---|---|---|
+| Command center (React SPA) | **https://reflex-recover.vercel.app** | Vercel — git-connected (push `main` auto-deploys), build env `VITE_REFLEX_API` |
+| API (FastAPI + PostgreSQL) | **https://reflex-api-production.up.railway.app** | Railway — git-connected, Dockerfile, `DATABASE_URL` = Postgres plugin (linked), serverless OFF, healthcheck `/healthz` |
+
+Seeded logins (password `reflex-demo`): `admin@reflex.dev` · `approver@` · `operator@` ·
+`viewer@`. Both deploy from GitHub `main`; CI (GitHub Actions) must stay green.
+
 ## Why this split
 
 - The API is a long-running container: embedded worker threads, the ~16-min
-  replay driver, SSE streams, and a SQLite file. That cannot run on Vercel
-  serverless functions (they are per-request, no threads, no disk).
+  replay driver, SSE streams, and a PostgreSQL connection pool. That cannot
+  run on Vercel serverless functions (they are per-request, no threads, no disk).
 - The frontend is a static SPA — Vercel is ideal and free.
 
 ## Backend — Railway (recommended) or Render
