@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run"
   },
+  "allowScripts": {
+    "esbuild": true
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.45.0",
     "react": "^18.3.1",

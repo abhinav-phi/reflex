@@ -21,6 +21,20 @@ export default defineConfig(({ mode }) => {
   }
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          // recharts + its d3 internals in their own chunks: keeps the main
+          // bundle under Vite's size warning AND makes the chart chunks
+          // cache-stable (recharts is only used by /results).
+          manualChunks(id: string) {
+            if (id.includes("node_modules/d3-")) return "charts-core";
+            if (id.includes("node_modules/recharts")) return "charts";
+            return undefined;
+          },
+        },
+      },
+    },
     server: {
       port: 5173,
       proxy: {
