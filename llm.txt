@@ -139,7 +139,7 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 - `CONTRIBUTING.md` — setup, conventions, non-negotiable fintech/AI safety rules
 - `docs/limitations.md` — THE honest record: gate scorecard, caveats, negative results
 - `eval/PROTOCOL.md` — pre-registered evaluation protocol + amendment history
-- `eval/results/20260826T105147Z/` — official keyed deterministic results (results.json + tables.md)
+- `eval/results/20260826T105147Z/` — official pre-registered results (results.json + tables.md)
 - `eval/results/superseded_pre_amendment/` — archived non-citable runs, with explanation
 - `docs/1. PRD.md` … `docs/8. Rules.md` — full design documentation (8 canonical files)
 - `tests/ai/test_diagnosis_accuracy.py` — 500-case diagnosis holdout (writes confusion matrix
