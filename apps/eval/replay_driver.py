@@ -24,6 +24,16 @@ log = structlog.get_logger("reflex.replay_driver")
 
 _state_lock = threading.Lock()
 _active: dict[str, dict] = {}
+# Track live drive threads so the "batch already running" guard reflects
+# reality instead of a Redis key that may go stale (e.g. after a redeploy).
+_threads: dict[str, threading.Thread] = {}
+
+
+def replay_in_progress() -> bool:
+    """True while any replay drive thread is alive (single-process deployments)."""
+    with _state_lock:
+        alive = [tid for tid, t in _threads.items() if t.is_alive()]
+    return bool(alive)
 
 
 def _prepare_batch_rows(eval_session, agent_session, *, seed: str | int, n: int, arm: Arm):  # type: ignore[no-untyped-def]
@@ -68,18 +78,20 @@ def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo:
         ordered = sorted(_active[batches[0]["id"]]["batch"].events, key=lambda e: e.t_offset_secs)
         t = threading.Thread(
             target=_drive,
-            args=(ordered, batches, customer_ids, sim_start, speed, redis_client),
+            args=(ordered, batches, customer_ids, sim_start, speed, redis_client, seed),
             daemon=True,
             name=f"replay-{seed}",
         )
         t.start()
+        with _state_lock:
+            _threads[seed] = t
         return [b["id"] for b in batches]
     finally:
         eval_s.close()
         agent_s.close()
 
 
-def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client) -> None:  # type: ignore[no-untyped-def]
+def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client, seed=None) -> None:  # type: ignore[no-untyped-def]
     """Feed failure events in t_offset order against accelerated wall-clock."""
     from reflex.api.db import agent_sessionmaker
 
@@ -141,10 +153,12 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
                         pass
             s.commit()
             try:
-                done = int(redis_client.incr("reflex:replay:fed") )
+                done = int(redis_client.incr("reflex:replay:fed"))
                 if done >= total * len(batches):
                     redis_client.set("reflex:replay:done", "1")
                     redis_client.delete("reflex:replay:running")
+                    with _state_lock:
+                        _threads.pop(str(seed), None)
             except Exception:
                 pass
         except Exception as exc:

@@ -25,7 +25,7 @@ export default function Results() {
   const q = useQuery({
     queryKey: ["eval"],
     queryFn: () => api<{ "[SIMULATED]": boolean; runs: EvalRunDto[] }>("/api/metrics/eval"),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
   });
 
   const [runMsg, setRunMsg] = useState<string | null>(null);

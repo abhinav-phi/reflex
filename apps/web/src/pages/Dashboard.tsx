@@ -20,12 +20,12 @@ export default function Dashboard() {
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<LiveMetrics>("/api/metrics/live"),
-    refetchInterval: 2000,
+    refetchInterval: 15000,
   });
   const episodes = useQuery({
     queryKey: ["episodes", armFilter],
     queryFn: () => api<{ total: number; items: EpisodeListItem[] }>(`/api/episodes?limit=60${armFilter ? `&arm=${armFilter}` : ""}`),
-    refetchInterval: 2500,
+    refetchInterval: 15000,
   });
   const detail = useQuery({
     queryKey: ["episode", openEpisode],

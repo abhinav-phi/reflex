@@ -662,10 +662,11 @@ async def stream(request: Request, user: dict = Depends(require_role(Role.VIEWER
 @app.post("/api/replay/start")
 def replay_start(body: ReplayStartRequest, request: Request, user: dict = Depends(require_role(Role.OPERATOR))) -> dict:
     app.state.rate.check("replay_start", user["user_id"])
-    from reflex.eval.replay_driver import start_replay_batch
+    from reflex.eval.replay_driver import replay_in_progress, start_replay_batch
 
-    running = app.state.redis.get("reflex:replay:running")
-    if running:
+    # Guard on live drive-thread state (not just the Redis key, which can go
+    # stale after a redeploy and would then block every future demo with 409).
+    if replay_in_progress() or app.state.redis.get("reflex:replay:running"):
         raise HTTPException(status_code=409, detail="a replay batch is already running")
     batch_ids = start_replay_batch(
         n=body.n,

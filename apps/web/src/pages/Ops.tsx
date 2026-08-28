@@ -15,7 +15,7 @@ export default function Ops() {
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<Record<string, unknown>>("/api/metrics/live"),
-    refetchInterval: 3000,
+    refetchInterval: 15000,
   });
   const evalStatus = useQuery({
     queryKey: ["evalstatus"],
