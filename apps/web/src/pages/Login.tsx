@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, setToken } from "../lib/api";
+import { useTitle } from "../hooks/useTitle";
 
 export default function Login() {
+  useTitle("Sign in — Reflex");
   const nav = useNavigate();
   const [email, setEmail] = useState("admin@reflex.dev");
   const [password, setPassword] = useState("reflex-demo");
@@ -31,7 +33,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-surface bg-grid-paper flex items-center justify-center p-4">
-      <main className="w-full max-w-5xl bg-surface-container-lowest rounded-2xl shadow-warm-ambient flex flex-col md:flex-row overflow-hidden border border-outline-variant">
+      <main className="w-full max-w-5xl bg-surface-container-lowest rounded-2xl warm-shadow flex flex-col md:flex-row overflow-hidden border border-outline-variant">
         {/* Left — Forest */}
         <div className="bg-primary-container p-8 md:p-12 md:w-1/2 flex flex-col justify-between text-on-primary">
           <div>

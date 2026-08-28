@@ -1,16 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, post, downloadFile } from "../lib/api";
+import { api, post, downloadFile, clearToken, getRole, roleRankOf } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
+import { BottomNav } from "../components/BottomNav";
 import { useStream } from "../hooks/useStream";
+import { useTitle } from "../hooks/useTitle";
 import { useUi } from "../store";
 import { Chip, SimulatedBadge } from "../components/Chips";
 
 /** Ops (AppFlow §12): replay demo, modes, injections, guardrails, live event console. */
 export default function Ops() {
+  useTitle("Ops — Reflex");
   useStream();
   const qc = useQueryClient();
+  const canOperate = (roleRankOf(getRole()) ?? -1) >= 1; // operator or admin
   const events = useUi((s) => s.events);
   const metrics = useQuery({
     queryKey: ["metrics"],
@@ -58,6 +62,7 @@ export default function Ops() {
   const mode = useMutation({
     mutationFn: (m: string) => post("/api/control/mode", { mode: m }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["metrics"] }),
+    onError: (e) => setMsg(`mode change failed: ${e instanceof Error ? e.message : "unknown"}`),
   });
   const inject = useMutation({
     mutationFn: (scenario: string) => post<Record<string, unknown>>(`/api/control/inject/${scenario}`, {}),
@@ -65,6 +70,7 @@ export default function Ops() {
       setMsg(`${scenario} → ${JSON.stringify(d)}`);
       void qc.invalidateQueries();
     },
+    onError: (e) => setMsg(`injection failed: ${e instanceof Error ? e.message : "unknown"}`),
   });
   const startReplay = useMutation({
     mutationFn: (v: { n: number; speed: number }) =>
@@ -100,69 +106,81 @@ export default function Ops() {
 
         <div className="mt-8 md:mt-24 grid gap-6 md:gap-4 md:grid-cols-2">
           <Card title="Demo replay — start the live simulation" sub="streams real episodes through the full pipeline; dashboard counters climb [SIMULATED]">
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="font-mono text-[11px] text-on-surface-variant">episodes</label>
-              <input
-                type="number"
-                min={1}
-                max={214}
-                value={replay.n}
-                onChange={(e) => setReplay({ ...replay, n: Math.max(1, Math.min(214, Number(e.target.value) || 1)) })}
-                className="w-20 rounded-lg border border-outline-variant bg-surface-container px-2 py-1 font-mono text-xs"
-              />
-              <label className="ml-2 font-mono text-[11px] text-on-surface-variant">×speed</label>
-              <input
-                type="number"
-                min={1}
-                max={1000}
-                value={replay.speed}
-                onChange={(e) => setReplay({ ...replay, speed: Math.max(1, Number(e.target.value) || 100) })}
-                className="w-20 rounded-lg border border-outline-variant bg-surface-container px-2 py-1 font-mono text-xs"
-              />
-              <button
-                onClick={() => startReplay.mutate(replay)}
-                disabled={startReplay.isPending}
-                className="rounded-full bg-primary-container px-6 py-2 text-xs font-mono font-semibold text-on-primary hover:bg-primary disabled:opacity-50"
-              >
-                {startReplay.isPending ? "starting…" : "▶ Start demo"}
-              </button>
-            </div>
+            {canOperate ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="font-mono text-[11px] text-on-surface-variant">episodes</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={214}
+                  value={replay.n}
+                  onChange={(e) => setReplay({ ...replay, n: Math.max(1, Math.min(214, Number(e.target.value) || 1)) })}
+                  className="w-20 rounded-lg border border-outline-variant bg-surface-container px-2 py-1 font-mono text-xs"
+                />
+                <label className="ml-2 font-mono text-[11px] text-on-surface-variant">×speed</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={replay.speed}
+                  onChange={(e) => setReplay({ ...replay, speed: Math.max(1, Number(e.target.value) || 100) })}
+                  className="w-20 rounded-lg border border-outline-variant bg-surface-container px-2 py-1 font-mono text-xs"
+                />
+                <button
+                  onClick={() => startReplay.mutate(replay)}
+                  disabled={startReplay.isPending}
+                  className="rounded-full bg-primary-container px-6 py-2 text-xs font-mono font-semibold text-on-primary hover:bg-primary disabled:opacity-50"
+                >
+                  {startReplay.isPending ? "starting…" : "▶ Start demo"}
+                </button>
+              </div>
+            ) : (
+              <p className="font-mono text-[11px] text-on-surface-variant">operator or admin role required — replays dispatch through the live pipeline.</p>
+            )}
             <p className="mt-2 font-mono text-[10px] text-outline">POST /api/replay/start · 409 if a batch is already running</p>
           </Card>
 
           <Card title="Mode control">
-            <div className="flex flex-wrap gap-2 md:gap-2">
-              {["advisory", "autonomous", "degraded", "halted"].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => mode.mutate(m)}
-                  disabled={mode.isPending}
-                  className={`rounded-full border px-4 md:px-6 py-2 md:py-3 text-xs hover:border-primary hover:text-primary disabled:opacity-50 ${String(metrics.data?.["mode"]) === m ? "border-primary bg-surface-container text-primary" : "border-outline-variant"}`}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
+            {canOperate ? (
+              <div className="flex flex-wrap gap-2 md:gap-2">
+                {["advisory", "autonomous", "degraded", "halted"].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => mode.mutate(m)}
+                    disabled={mode.isPending}
+                    className={`rounded-full border px-4 md:px-6 py-2 md:py-3 text-xs hover:border-primary hover:text-primary disabled:opacity-50 ${String(metrics.data?.["mode"]) === m ? "border-primary bg-surface-container text-primary" : "border-outline-variant"}`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="font-mono text-[11px] text-on-surface-variant">operator or admin role required — mode changes are ledgered.</p>
+            )}
           </Card>
 
           <Card title="Failure injections" sub="real paths — labeled events, never UI fakery (Rules §16.4)">
-            <div className="flex flex-wrap gap-2 md:gap-2">
-              {[
-                ["llm_outage", "LLM outage → DEGRADED"],
-                ["llm_restore", "LLM restore"],
-                ["webhook_storm", "Webhook storm 1,000→214"],
-                ["complaint", "Complaint mid-episode"],
-              ].map(([s, label]) => (
-                <button
-                  key={s}
-                  onClick={() => inject.mutate(s)}
-                  disabled={inject.isPending}
-                  className="rounded-full border border-tertiary-container/50 px-4 md:px-6 py-2 md:py-3 text-xs text-tertiary-container hover:bg-tertiary-container/10 disabled:opacity-50"
-                >
-                  ⚡ {label}
-                </button>
-              ))}
-            </div>
+            {canOperate ? (
+              <div className="flex flex-wrap gap-2 md:gap-2">
+                {[
+                  ["llm_outage", "LLM outage → DEGRADED"],
+                  ["llm_restore", "LLM restore"],
+                  ["webhook_storm", "Webhook storm 1,000→214"],
+                  ["complaint", "Complaint mid-episode"],
+                ].map(([s, label]) => (
+                  <button
+                    key={s}
+                    onClick={() => inject.mutate(s)}
+                    disabled={inject.isPending}
+                    className="rounded-full border border-tertiary-container/50 px-4 md:px-6 py-2 md:py-3 text-xs text-tertiary-container hover:bg-tertiary-container/10 disabled:opacity-50"
+                  >
+                    ⚡ {label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="font-mono text-[11px] text-on-surface-variant">operator or admin role required — injections exercise real control paths.</p>
+            )}
             {Boolean(metrics.data?.["llm_outage"]) && (
               <p className="mt-4 font-mono text-[11px] text-on-tertiary-fixed">LLM outage active — banner live until llm_restore.</p>
             )}
@@ -215,7 +233,7 @@ export default function Ops() {
           <Card title="Session">
             <div className="flex flex-wrap gap-2">
               <button onClick={() => void inject.mutate("llm_restore")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">clear degraded banner</button>
-              <Link to="/login" onClick={() => localStorage.removeItem("reflex_token")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">Sign out</Link>
+              <Link to="/login" onClick={() => { clearToken(); qc.clear(); }} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">Sign out</Link>
             </div>
           </Card>
 
@@ -232,6 +250,7 @@ export default function Ops() {
           </Card>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }

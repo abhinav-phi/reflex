@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, downloadFile } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
+import { BottomNav } from "../components/BottomNav";
 import { Chip, SimulatedBadge } from "../components/Chips";
 import { formatINR, asPaise } from "../lib/format";
+import { useTitle } from "../hooks/useTitle";
 
 /** Audit (AppFlow §4I): ledger browser + chain verification; tamper ⇒ red. */
 interface LedgerResp {
@@ -18,16 +20,18 @@ interface EpRow {
 }
 
 export default function Audit() {
+  useTitle("Audit — Reflex");
   const [result, setResult] = useState<LedgerResp | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [eps, setEps] = useState<EpRow[]>([]);
   const [ledgerEvents, setLedgerEvents] = useState<{ seq: number; episode_id: string; event: Record<string, unknown>; created_at: string }[]>([]);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
       api<{ items: EpRow[] }>("/api/episodes?limit=100").then((d) => setEps(d.items)),
       api<{ items: typeof ledgerEvents }>(`/api/ledger/export?format=json&limit=200`).then((d) => setLedgerEvents(d.items ?? [])),
-    ]).catch(() => {});
+    ]).catch((e) => setLoadErr(e instanceof Error ? e.message : "failed to load audit data"));
   }, []);
 
   async function verify(): Promise<void> {
@@ -49,6 +53,10 @@ export default function Audit() {
             {verifying ? "verifying…" : "Verify chain"}
           </button>
         </header>
+
+        {loadErr && (
+          <div className="mt-6 md:mt-16 rounded-xl border border-error/40 bg-error-container p-4 text-sm text-on-error-container">{loadErr}</div>
+        )}
 
         {result && (
           <div className={`mt-6 md:mt-16 rounded-xl border p-4 md:p-6 text-sm ${result.valid ? "border-secondary text-secondary bg-secondary-container/20" : "border-error text-error bg-error-container"}`}>
@@ -115,6 +123,7 @@ export default function Audit() {
           </div>
         </section>
       </main>
+      <BottomNav />
     </div>
   );
 }

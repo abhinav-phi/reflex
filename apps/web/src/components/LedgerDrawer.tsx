@@ -62,7 +62,7 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-8 p-24">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-10 rounded-card bg-white/5" />
+        <div key={i} className="h-10 rounded-card bg-surface-container-high" />
       ))}
     </div>
   );

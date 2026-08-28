@@ -19,5 +19,4 @@ body {
 }
 .warm-shadow { box-shadow: 0 4px 20px rgba(22,38,29,0.06); }
 .warm-shadow-lg { box-shadow: 0 12px 40px rgba(22,38,29,0.12); }
-.shadow-warm-ambient { box-shadow: 0 4px 20px rgba(22,38,29,0.06); }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

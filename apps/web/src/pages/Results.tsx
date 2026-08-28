@@ -12,7 +12,9 @@ import {
 import type { EvalRunDto } from "../lib/api";
 import { api, post } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
+import { BottomNav } from "../components/BottomNav";
 import { SimulatedBadge } from "../components/Chips";
+import { useTitle } from "../hooks/useTitle";
 
 
 function point(m: Record<string, unknown>): number | null {
@@ -22,6 +24,7 @@ function point(m: Record<string, unknown>): number | null {
 
 /** Results (AppFlow §4G): arm table with CIs + ablation bars — all [SIMULATED]. */
 export default function Results() {
+  useTitle("Results — Reflex");
   const q = useQuery({
     queryKey: ["eval"],
     queryFn: () => api<{ "[SIMULATED]": boolean; runs: EvalRunDto[] }>("/api/metrics/eval"),
@@ -94,7 +97,8 @@ export default function Results() {
         {runs.length === 0 && <div className="mt-8 md:mt-24 rounded-xl border border-dashed border-outline-variant p-8 md:p-12 text-center text-sm text-on-surface-variant bg-surface-container-lowest warm-shadow">No evaluation runs yet. <code>./eval/reproduce.sh</code> or press Run — protocol pre-registered.</div>}
 
         <section className="mt-8 md:mt-24 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest warm-shadow">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-outline-variant bg-surface-container text-left font-mono text-label-mono uppercase text-on-surface-variant">
               <tr>
                 <th className="px-4 md:px-6 py-3 md:py-4">Arm</th>
@@ -121,6 +125,7 @@ export default function Results() {
               })}
             </tbody>
           </table>
+          </div>
         </section>
 
         {chartData.length > 0 && (
@@ -140,6 +145,7 @@ export default function Results() {
           </section>
         )}
       </main>
+      <BottomNav />
     </div>
   );
 }

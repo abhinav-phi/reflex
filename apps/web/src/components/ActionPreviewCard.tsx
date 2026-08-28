@@ -22,7 +22,7 @@ export function ActionPreviewCard({
   message?: string | null;
 }) {
   const rows: [string, ReactNode][] = [
-    ["WHAT", <>{what} · <span className="text-amber-300">[SIMULATED]</span></>],
+    ["WHAT", <>{what} · <span className="text-on-tertiary-container">[SIMULATED]</span></>],
     ["WHY", why],
     ["IMPACT", impact],
     ["RISK", risk ?? "—"],

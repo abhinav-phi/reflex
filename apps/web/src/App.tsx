@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { getToken } from "./lib/api";
+import { getToken, isTokenExpired, clearToken } from "./lib/api";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
@@ -15,7 +15,12 @@ const qc = new QueryClient({
 });
 
 function Protected({ children }: { children: React.ReactNode }) {
-  if (!getToken()) return <Navigate to="/login" replace />;
+  // Gate on both presence and JWT exp — a stale token must not keep a broken
+  // session alive; drop it and send the user back to login.
+  if (!getToken() || isTokenExpired()) {
+    if (isTokenExpired()) clearToken();
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 

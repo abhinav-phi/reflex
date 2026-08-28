@@ -1,18 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import type { ActionDto, CandidateDto, EpisodeDetail, EpisodeListItem, LiveMetrics } from "../lib/api";
 import { api } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
 import { useUi } from "../store";
 import { useStream } from "../hooks/useStream";
 import { ControlBar } from "../components/ControlBar";
+import { BottomNav } from "../components/BottomNav";
 import { DiagnosisChip, StatusChip } from "../components/Chips";
 import { GuardrailSnapshot, Overlay } from "../components/EVDrawer";
 import { EpisodeDrawerContent } from "../components/EpisodeDrawer";
 import { LedgerDrawer } from "../components/LedgerDrawer";
+import { useTitle } from "../hooks/useTitle";
 
 export default function Dashboard() {
+  useTitle("Reflex — Command Center [SIMULATED]");
   useStream();
   const { openEpisode, openEpisodeDrawer, evAction, openEvDrawer, ledgerEpisode, openLedgerDrawer } = useUi();
   const [armFilter, setArmFilter] = useState<string | null>("reflex");
@@ -93,7 +95,7 @@ export default function Dashboard() {
             <div className="h-1 mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Recovered by Reflex</p>
             <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.recovered_reflex_paise)) : "—"}</h2>
-            <p className="font-mono text-label-mono bg-secondary-fixed inline-block px-2 py-1 rounded text-on-secondary-fixed">
+            <p className="font-mono text-label-mono bg-success-container inline-block px-2 py-1 rounded text-success">
               {m && m.recovered_b1_paise > 0 ? `${(((m.recovered_reflex_paise - m.recovered_b1_paise) / m.recovered_b1_paise) * 100).toFixed(0)}% vs tuned baseline` : "vs tuned baseline"}
             </p>
           </div>
@@ -234,25 +236,8 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Bottom nav for mobile */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-surface-container-high py-2 px-6 flex justify-between items-center md:hidden z-50">
-        <Link to="/dashboard" className="flex flex-col items-center gap-1 text-primary font-bold">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" } as React.CSSProperties}>dashboard</span>
-          <span className="font-mono text-[10px]">Dashboard</span>
-        </Link>
-        <Link to="/approvals" className="flex flex-col items-center gap-1 text-on-surface-variant">
-          <span className="material-symbols-outlined">fact_check</span>
-          <span className="font-mono text-[10px]">Approvals</span>
-        </Link>
-        <Link to="/results" className="flex flex-col items-center gap-1 text-on-surface-variant">
-          <span className="material-symbols-outlined">analytics</span>
-          <span className="font-mono text-[10px]">Results</span>
-        </Link>
-        <Link to="/ops" className="flex flex-col items-center gap-1 text-on-surface-variant">
-          <span className="material-symbols-outlined">settings</span>
-          <span className="font-mono text-[10px]">Ops</span>
-        </Link>
-      </div>
+      {/* Mobile bottom nav (shared — also rendered on other pages) */}
+      <BottomNav />
 
       {openEpisode && detail.data && (
         <Overlay title="Episode" onClose={() => openEpisodeDrawer(null)}>
@@ -280,7 +265,7 @@ function EvBridge({ episode, actionId }: { episode: EpisodeDetail; actionId: str
   return (
     <Overlay title="EV drawer — AI-ranked rationale" onClose={() => useUi.getState().openEvDrawer(null)} width="480px">
       <div className="border-b border-outline-variant px-6 md:px-24 py-6 md:py-16">
-        <div className="text-[11px] uppercase tracking-wide text-on-tertiary-container">✦ AI-ranked action</div>
+        <div className="text-[11px] uppercase tracking-wide text-ai-accent">✦ AI-ranked action</div>
         <div className="mt-2 font-mono text-sm">EV {formatINR(asPaise(terms.ev))} = p {terms.p.toFixed(2)} × {formatINR(asPaise(terms.gain))} − {formatINR(asPaise(terms.cost))} − {formatINR(asPaise(terms.annoyance))}</div>
       </div>
       <div className="px-6 md:px-24 py-6 md:py-16">

@@ -43,10 +43,10 @@ export function ControlBar() {
           <span className="font-display text-headline-sm font-bold tracking-tight text-primary">Reflex</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <SimulatedBadge />
-          <TestModeBadge />
-          <span className={`rounded-full px-3 py-1 flex items-center font-mono text-[10px] tracking-widest ${halted ? "bg-error-container text-error" : banner.kind === "DEGRADED" ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-outline-variant text-on-surface"}`}>MODE: {mode.toUpperCase()}</span>
+          <span className="hidden md:inline-flex"><TestModeBadge /></span>
+          <span className={`hidden md:inline-flex items-center gap-1 rounded-full px-3 py-1 font-mono text-[10px] tracking-widest ${halted ? "bg-error-container text-error" : banner.kind === "DEGRADED" ? "bg-tertiary-fixed text-on-tertiary-fixed" : "bg-outline-variant text-on-surface"}`}>MODE: {mode.toUpperCase()}</span>
         </div>
 
         <nav className="hidden md:flex gap-6 ml-4">

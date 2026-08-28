@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, post } from "../lib/api";
 import { ControlBar } from "../components/ControlBar";
+import { BottomNav } from "../components/BottomNav";
 import { TestModeBadge } from "../components/Chips";
+import { useTitle } from "../hooks/useTitle";
 
 /** Onboarding (AppFlow §2): keys check → webhook → guardrails → mode. */
 export default function Onboarding() {
+  useTitle("Onboarding — Reflex");
   const nav = useNavigate();
   const [step, setStep] = useState(0);
   const [keyId, setKeyId] = useState("");
@@ -34,14 +37,18 @@ export default function Onboarding() {
   }
 
   async function saveGuardrails() {
-    await post("/api/onboarding/guardrails", {
-      caps_per_episode: caps,
-      contacts_per_day: contacts,
-      quiet_hours: "21:00-09:00",
-      budget_paise_daily: 500000,
-      approval_threshold_paise: 5000000,
-    });
-    setStep(3);
+    try {
+      await post("/api/onboarding/guardrails", {
+        caps_per_episode: caps,
+        contacts_per_day: contacts,
+        quiet_hours: "21:00-09:00",
+        budget_paise_daily: 500000,
+        approval_threshold_paise: 5000000,
+      });
+      setStep(3);
+    } catch (ex) {
+      setCheckMsg(`✗ ${ex instanceof Error ? ex.message : "save failed"}`);
+    }
   }
 
   return (
@@ -80,10 +87,11 @@ export default function Onboarding() {
               <option value="advisory">Advisory (recommended)</option>
               <option value="autonomous">Autonomous (bounded)</option>
             </select>
-            {step === 3 && <button onClick={() => void post("/api/onboarding/mode", { mode }).then(() => nav("/dashboard"))} className="ml-4 rounded-full bg-primary-container text-on-primary px-6 py-2 text-xs font-mono font-semibold">Finish → dashboard</button>}
+            {step === 3 && <button onClick={() => void post("/api/onboarding/mode", { mode }).then(() => nav("/dashboard")).catch((e) => setCheckMsg(`mode save failed: ${e instanceof Error ? e.message : "unknown"}`))} className="ml-4 rounded-full bg-primary-container text-on-primary px-6 py-2 text-xs font-mono font-semibold">Finish → dashboard</button>}
           </li>
         </ol>
       </main>
+      <BottomNav />
     </div>
   );
 }

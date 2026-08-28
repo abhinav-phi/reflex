@@ -5,61 +5,6 @@ import { post } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
 import { Chip } from "./Chips";
 
-/** Action Preview Card — mandatory pattern (Design §15, Rules §4.4). */
-export function ActionPreviewCard({
-  action,
-  episode,
-}: {
-  action: ActionDto;
-  episode?: EpisodeDetail;
-}) {
-  const guard = (action.guardrail_snapshot ?? {}) as Record<string, unknown>;
-  const ev = guard["ev"] as Record<string, number> | undefined;
-  const rows: [string, React.ReactNode][] = [
-    [
-      "WHAT",
-      <>
-        {action.intervention.replace(/_/g, " ").toLowerCase()} ·{" "}
-        <span className="text-amber-300">[SIMULATED]</span> channel {action.channel}
-      </>,
-    ],
-    [
-      "WHY",
-      episode?.diagnoses?.length
-        ? `${episode.diagnoses[0].canonical_code} · ${episode.diagnoses[0].rationale.slice(0, 80)}`
-        : "root-cause policy",
-    ],
-    [
-      "IMPACT",
-      `${formatINR(asPaise(episode?.amount_paise ?? 0))} recovery · cost ${formatINR(asPaise(action.cost_paise))}${
-        ev ? ` · EV ${formatINR(asPaise(ev["ev_paise"] ?? 0))}` : ""
-      }`,
-    ],
-    ["RISK", ev ? `annoyance ${formatINR(asPaise(ev["annoyance_paise"] ?? 0))} · contact ${action.policy_version}` : "—"],
-    [
-      "GATE",
-      `${String(guard["outcome_reason"] ?? action.status)} · mode ${action.mode} · quiet ${
-        String(guard["quiet_hours_clear"])
-      }`,
-    ],
-    [
-      "APPROVAL",
-      (episode?.amount_paise ?? 0) > 5_000_000 ? "required (>₹50,000)" : "not required (<₹50,000)",
-    ],
-    ["REVERSIBILITY", "message only — cannot move money; stop = suppression (instant)"],
-  ];
-  return (
-    <div className="rounded-card border border-cmd-border bg-black/20 p-12 text-[12px]">
-      {rows.map(([k, v]) => (
-        <div key={k} className="grid grid-cols-[110px_1fr] gap-8 py-2">
-          <span className="font-mono uppercase text-ink-muted">{k}</span>
-          <span className="text-slate-200">{v}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Full episode drawer: diagnosis → candidates → actions → outcome (AppFlow §4). */
 export function EpisodeDrawerContent({
   ep,

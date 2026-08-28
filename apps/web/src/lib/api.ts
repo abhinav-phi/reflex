@@ -148,6 +148,38 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function decodeJwt(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, "=")));
+  } catch {
+    return null;
+  }
+}
+
+/** Role from the JWT payload (also returned by /api/auth/login). */
+export function getRole(): Role | null {
+  const t = getToken();
+  if (!t) return null;
+  const role = decodeJwt(t)?.["role"];
+  return typeof role === "string" ? (role as Role) : null;
+}
+
+/** True when the JWT `exp` claim has passed. */
+export function isTokenExpired(): boolean {
+  const t = getToken();
+  if (!t) return false;
+  const exp = decodeJwt(t)?.["exp"];
+  return typeof exp === "number" && exp * 1000 <= Date.now();
+}
+
+/** Role rank for UI gating — mirrors packages/core/enums ROLE_ORDER. */
+export function roleRankOf(role: Role | null): number {
+  return role === "viewer" ? 0 : role === "operator" ? 1 : role === "approver" ? 2 : role === "admin" ? 3 : -1;
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -162,6 +194,12 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const url = withBase(path);
   const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
+    // Expired/invalid session: drop the token and bounce to login (but never
+    // while the login page itself is trying, or bad creds would redirect-loop).
+    if (res.status === 401 && getToken() && !window.location.pathname.startsWith("/login")) {
+      clearToken();
+      window.location.assign("/login");
+    }
     let msg = `${res.status}`;
     try {
       const body = await res.json();
