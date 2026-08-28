@@ -94,6 +94,9 @@ def agent_session() -> Iterator[Session]:
         s.close()
 
 
+_FAKE_REDIS_SINGLETON: object | None = None
+
+
 def get_redis():  # type: ignore[no-untyped-def]
     import os
 
@@ -102,7 +105,10 @@ def get_redis():  # type: ignore[no-untyped-def]
     # If the platform did not provide a REDIS_URL (e.g. Antideploy), use the
     # in-memory fake instead of pointing a real client at a dead localhost:6379.
     if not os.environ.get("REDIS_URL"):
-        return _make_fake_redis()  # type: ignore[return-value]
+        global _FAKE_REDIS_SINGLETON
+        if _FAKE_REDIS_SINGLETON is None:
+            _FAKE_REDIS_SINGLETON = _make_fake_redis()
+        return _FAKE_REDIS_SINGLETON  # type: ignore[return-value]
 
     url = get_settings().redis_url
     # Antideploy Node build has no redis:6379 host - fallback to in-memory fake for demo
@@ -124,12 +130,20 @@ def get_redis():  # type: ignore[no-untyped-def]
 
 
 def _make_fake_redis():  # type: ignore[no-untyped-def]
-    """In-memory fake that mimics Redis for counters/pubsub (cloud deploys)."""
+    """In-memory fake that mimics Redis for counters/pubsub/streams (cloud deploys).
+
+    Antideploy runs a single API container with no Redis broker and no separate
+    worker processes, so the worker loops run as threads inside the API (see
+    main.py embedded_workers). Those loops need the Redis Streams API
+    (xgroup_create/xreadgroup/xack/xdel) plus the plain key ops below.
+    """
 
     class _FakeRedis:
         def __init__(self):
             self._data = {}
-            self._pub = []
+            self._streams: dict[str, list] = {}  # name -> [(msg_id, fields)]
+            self._groups: dict[tuple, dict] = {}  # (name, group) -> {consumer: set(msg_ids)}
+            self._seq = 0
 
         def get(self, k):
             return self._data.get(k)
@@ -139,6 +153,12 @@ def _make_fake_redis():  # type: ignore[no-untyped-def]
 
         def setex(self, k, ttl, v):
             self._data[k] = str(v)
+
+        def delete(self, *keys):
+            for k in keys:
+                self._data.pop(k, None)
+                self._streams.pop(k, None)
+            return len(keys)
 
         def incr(self, k):
             self._data[k] = str(int(self._data.get(k, "0")) + 1)
@@ -160,8 +180,44 @@ def _make_fake_redis():  # type: ignore[no-untyped-def]
 
             return _Pub()
 
-        def xadd(self, *a, **kw):
-            return "0-0"
+        # ---- Redis Streams (embedded workers) ---------------------------------
+        def xadd(self, stream, fields, *a, **kw):
+            self._seq += 1
+            self._streams.setdefault(stream, []).append((f"{self._seq}-0", fields))
+            return f"{self._seq}-0"
+
+        def xgroup_create(self, stream, group, id="0", mkstream=True):  # type: ignore[no-untyped-def]
+            key = (stream, group)
+            if key not in self._groups:
+                self._groups[key] = {}
+            return True
+
+        def xreadgroup(self, group, consumer, streams, count=None, block=0):  # type: ignore[no-untyped-def]
+            out = []
+            for stream, _marker in (streams or {}).items():
+                entries = self._streams.get(stream, [])
+                pending = self._groups.setdefault((stream, group), {}).setdefault(consumer, set())
+                unread = [(mid, f) for mid, f in entries if mid not in pending]
+                picked = unread[: (count or 10)]
+                for mid, _ in picked:
+                    pending.add(mid)
+                if picked:
+                    out.append((stream, picked))
+            return out
+
+        def xack(self, stream, group, *ids):
+            pend = self._groups.setdefault((stream, group), {}).setdefault("_ack", set())
+            for mid in ids:
+                pend.add(mid)
+            # drop acked entries from every consumer's pending set
+            for consumers in self._groups.get((stream, group), {}).values():
+                consumers.difference_update(ids)
+            return len(ids)
+
+        def xdel(self, stream, *ids):
+            entries = self._streams.get(stream, [])
+            self._streams[stream] = [e for e in entries if e[0] not in ids]
+            return len(ids)
 
         def get_connection(self, *a, **kw):
             raise Exception("fake")

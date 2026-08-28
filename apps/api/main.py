@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import threading
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
@@ -190,7 +192,27 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 pass
     except Exception as _e:
         log.warning("cloud_autoseed_outer_skip", error=str(_e))
+
+    # Embedded workers (single-container mode): when no real Redis is available
+    # (Antideploy) the worker loops run as daemon threads inside the API so the
+    # demo pipeline (diagnosis → decision → dispatch → outcome) completes.
+    _stop_workers = threading.Event()
+    app.state._stop_workers = _stop_workers
+    if not os.environ.get("REDIS_URL"):
+        from reflex.workers.runner import run_decision, run_diagnosis, run_outcome
+
+        _workers = [
+            threading.Thread(target=run_diagnosis, args=(_stop_workers,), daemon=True, name="w-dx"),
+            threading.Thread(target=run_decision, args=(_stop_workers,), daemon=True, name="w-dc"),
+            threading.Thread(target=run_outcome, args=(_stop_workers,), daemon=True, name="w-oc"),
+        ]
+        for w in _workers:
+            w.start()
+        log.info("embedded_workers_started", count=len(_workers))
+
     yield
+    _stop_workers.set()
+    log.info("embedded_workers_stopped")
 
 
 app = FastAPI(title="Reflex", version="1.0.0", lifespan=lifespan)
