@@ -57,6 +57,14 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.redis = get_redis()
     app.state.rate = RateLimiter(app.state.redis)
     app.state.started_at = datetime.now(UTC)
+    # Bootstrap schema if missing (cloud deploy, no alembic migrate job available)
+    try:
+        from reflex.api.bootstrap import bootstrap as _bootstrap
+        from reflex.api.db import agent_engine
+
+        _bootstrap(agent_engine())
+    except Exception:
+        log.warning("bootstrap_skipped")
     # Auto-seed for cloud deploys (Antideploy) - if users table empty, seed it so login works without manual console
     try:
         from reflex.api.db import agent_sessionmaker as _agent_mk
@@ -402,9 +410,8 @@ def debug_migrate() -> dict:
     import traceback
 
     try:
-        from pathlib import Path as _Path
-
         import importlib
+        from pathlib import Path as _Path
 
         _MOD = "al" + "embic"
         _AlembicConfig = importlib.import_module(_MOD + ".config").Config

@@ -36,7 +36,7 @@ export default function Dashboard() {
   const m = metrics.data;
   const contactsToday = m?.contacts_today ?? 0;
   const contactsPerDay = m?.contacts_per_day ?? 2;
-  const quietHours = (m?.quiet_hours ?? "21:00-09:00").replace(":00", "").replace("21:00-09:00", "21–09");
+  const quietHours = (m?.quiet_hours ?? "21:00-09:00").replace(/:00/g, "").replace("21:00-09:00", "21–09");
 
   // Today's Signal — live diagnosis coverage from the counters when episodes
   // exist; otherwise the eval holdout number (eval/results dx_holdout).
@@ -137,11 +137,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Desktop table */}
-            <div className="hidden md:block w-full overflow-x-auto">
+            {/* Desktop table with scroll — ~7 rows visible */}
+            <div className="hidden md:block w-full overflow-x-auto max-h-[400px] overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="font-mono text-label-mono text-primary-container border-b border-surface-container-highest uppercase">
+                  <tr className="sticky top-0 bg-surface-container-lowest font-mono text-label-mono text-primary-container border-b border-surface-container-highest uppercase z-10">
                     <th className="pb-4 font-normal tracking-[0.1em]">Episode</th>
                     <th className="pb-4 font-normal tracking-[0.1em]">Payment</th>
                     <th className="pb-4 font-normal tracking-[0.1em]">Diagnosis</th>

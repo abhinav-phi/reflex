@@ -79,9 +79,13 @@ function Term({ label, help, children }: { label: string; help: string; children
 export function Overlay({ onClose, title, width = "560px", children }: { onClose: () => void; title?: string; width?: string; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="h-full overflow-y-auto rounded-l-[16px] border-l border-outline-variant bg-surface-container-lowest warm-shadow-lg" style={{ width }} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="h-full w-full overflow-y-auto rounded-l-[16px] border-l border-outline-variant bg-surface-container-lowest warm-shadow-lg"
+        style={{ width: `min(100vw, ${width})` }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {title && (
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant bg-surface-container-lowest px-6 md:px-24 py-4 md:py-6">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-outline-variant bg-surface-container-lowest px-4 py-4 sm:px-24 sm:py-6">
             <h2 className="text-base font-semibold text-on-surface">{title}</h2>
             <button onClick={onClose} className="rounded-full border border-outline-variant px-3 py-1.5 text-xs text-on-surface-variant hover:text-on-surface">close ✕</button>
           </div>

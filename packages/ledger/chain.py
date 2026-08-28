@@ -160,17 +160,20 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
     """Walk chain in seq order; returns (valid, first_bad_seq, checked).
 
     Detects tampering with event payloads, hashes, or sequence linkage.
+
+    Seq numbers may have gaps (BIGSERIAL skips values on rolled-back
+    transactions) — the integrity guarantee is the hash chain, not contiguity.
     """
-    expected_seq = 0
+    prev_seq = 0
     prev = GENESIS_PREV
     for row in rows:
         seq = int(row["seq"])  # type: ignore[index]
         event = row["event"]  # type: ignore[index]
         prev_hash = str(row["prev_hash"])  # type: ignore[index]
         digest = str(row["hash"])  # type: ignore[index]
-        expected_seq += 1
-        if seq != expected_seq or prev_hash != prev or compute_hash(seq, prev, event) != digest:
+        if seq <= prev_seq or prev_hash != prev or compute_hash(seq, prev, event) != digest:
             return False, seq, len(rows)
+        prev_seq = seq
         prev = digest
     return True, None, len(rows)
 
@@ -184,13 +187,12 @@ def verify_db(session: Session) -> tuple[bool, int | None, int]:
     valid = True
     first_bad: int | None = None
     checked = 0
-    expected_seq = 0
+    prev_seq = 0
     prev = GENESIS_PREV
     for seq, event, prev_hash, digest in stmt:
         checked += 1
-        expected_seq += 1
         ok = (
-            int(seq) == expected_seq
+            int(seq) > prev_seq
             and prev_hash == prev
             and compute_hash(int(seq), prev, dict(event)) == digest
         )
@@ -198,6 +200,7 @@ def verify_db(session: Session) -> tuple[bool, int | None, int]:
             valid = False
             first_bad = int(seq)
         if ok:
+            prev_seq = int(seq)
             prev = digest
     return valid, first_bad, checked
 

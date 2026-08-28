@@ -65,46 +65,71 @@ export default function Audit() {
               <button onClick={() => void downloadFile("/api/ledger/export?format=json", "reflex_action_ledger_simulated.json")} className="rounded-full border border-outline-variant px-4 py-2 text-xs hover:border-primary hover:text-primary">Export ledger JSON</button>
             </div>
           </div>
-          <table className="w-full text-sm">
-            <thead className="border-b border-outline-variant bg-surface-container text-left font-mono text-label-mono uppercase text-on-surface-variant">
-              <tr>
-                <th className="px-4 md:px-6 py-3 md:py-4">Episode</th>
-                <th className="px-4 md:px-6 py-3 md:py-4">Amount</th>
-                <th className="px-4 md:px-6 py-3 md:py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eps.map((e) => (
-                <tr key={e.id} className="border-b border-surface-container-high last:border-0 h-[64px]">
-                  <td className="px-4 md:px-6 font-mono text-xs">{e.id.slice(0, 8)}</td>
-                  <td className="px-4 md:px-6 tabular-nums">{formatINR(asPaise(e.amount_paise))}</td>
-                  <td className="px-4 md:px-6"><Chip tone={e.status === "recovered" ? "green" : "slate"}>{e.status}</Chip></td>
+          {/* Episode summary — scrollable, ~7 rows visible */}
+          <div className="max-h-[420px] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 border-b border-outline-variant bg-surface-container text-left font-mono text-label-mono uppercase text-on-surface-variant">
+                <tr>
+                  <th className="px-4 md:px-6 py-3 md:py-4">Episode</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4">Amount</th>
+                  <th className="px-4 md:px-6 py-3 md:py-4">Status</th>
                 </tr>
-              ))}
-              {eps.length === 0 && <tr><td className="px-6 py-12 text-center text-on-surface-variant" colSpan={3}>Ledger empty — start a replay first.</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {eps.map((e) => (
+                  <tr key={e.id} className="border-b border-surface-container-high last:border-0 h-[64px]">
+                    <td className="px-4 md:px-6 font-mono text-xs">{e.id.slice(0, 8)}</td>
+                    <td className="px-4 md:px-6 tabular-nums">{formatINR(asPaise(e.amount_paise))}</td>
+                    <td className="px-4 md:px-6"><Chip tone={e.status === "recovered" ? "green" : "slate"}>{e.status}</Chip></td>
+                  </tr>
+                ))}
+                {eps.length === 0 && <tr><td className="px-6 py-12 text-center text-on-surface-variant" colSpan={3}>Ledger empty — start a replay first.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="mt-8 md:mt-24 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest warm-shadow">
           <div className="flex items-center justify-between border-b border-outline-variant px-4 md:px-6 py-4">
             <h2 className="font-display text-headline-sm text-primary">Recent ledger events</h2>
-            <span className="font-mono text-[11px] text-on-surface-variant">{ledgerEvents.length} events</span>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[11px] text-on-surface-variant">{ledgerEvents.length} events</span>
+              <button onClick={() => void copyLedger(ledgerEvents)} className="rounded-full border border-outline-variant px-4 py-1.5 text-xs hover:border-primary hover:text-primary" title="Copy all events as JSON">
+                📋 Copy all
+              </button>
+            </div>
           </div>
-          <ol className="space-y-0 px-4 md:px-6 py-4 font-mono text-[11px]">
-            {ledgerEvents.map((e) => (
-              <li key={e.seq} className="relative border-l border-outline-variant pb-4 pl-4 md:pl-8">
-                <span className="absolute -left-[5px] top-2 h-3 w-3 rounded-full border border-outline-variant bg-background" />
-                <div className="text-on-surface-variant">#{e.seq} · {new Date(e.created_at).toLocaleTimeString()}</div>
-                <div className="text-on-surface">{String(e.event["type"] ?? "?")}</div>
-                {typeof e.event["reason"] === "string" && e.event["reason"] && <div className="text-on-tertiary-container">reason: {e.event["reason"]}</div>}
-                {typeof e.event["mode"] === "string" && <div className="text-on-surface-variant">mode={e.event["mode"]}</div>}
-              </li>
-            ))}
-            {ledgerEvents.length === 0 && <li className="text-on-surface-variant">No events yet.</li>}
-          </ol>
+          <div className="max-h-[420px] overflow-y-auto">
+            <ol className="space-y-0 px-4 md:px-6 py-4 font-mono text-[11px]">
+              {ledgerEvents.map((e) => (
+                <li key={e.seq} className="relative border-l border-outline-variant pb-4 pl-4 md:pl-8">
+                  <span className="absolute -left-[5px] top-2 h-3 w-3 rounded-full border border-outline-variant bg-background" />
+                  <div className="text-on-surface-variant">#{e.seq} · {new Date(e.created_at).toLocaleTimeString()}</div>
+                  <div className="text-on-surface">{String(e.event["type"] ?? "?")}</div>
+                  {typeof e.event["reason"] === "string" && e.event["reason"] && <div className="text-on-tertiary-container">reason: {e.event["reason"]}</div>}
+                  {typeof e.event["mode"] === "string" && <div className="text-on-surface-variant">mode={e.event["mode"]}</div>}
+                </li>
+              ))}
+              {ledgerEvents.length === 0 && <li className="text-on-surface-variant">No events yet.</li>}
+            </ol>
+          </div>
         </section>
       </main>
     </div>
   );
+}
+
+async function copyLedger(events: { seq: number; event: Record<string, unknown>; created_at: string }[]): Promise<void> {
+  const text = JSON.stringify(events.map((e) => ({ seq: e.seq, created_at: e.created_at, ...e.event })), null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // clipboard API can fail on non-secure contexts — fall back to a textarea
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
 }
