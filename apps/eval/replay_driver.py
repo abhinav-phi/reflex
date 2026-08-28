@@ -73,12 +73,22 @@ def start_replay_batch(*, n: int, seed: str | int, arm: Arm, speed: float, demo:
                     "opened": sim_start,
                     "arm": b["arm"],
                 }
+        redis_client.delete("reflex:replay:fed")
+        redis_client.delete("reflex:replay:done")
         redis_client.set("reflex:replay:running", json.dumps({"batch_ids": [b["id"] for b in batches]}))
 
         ordered = sorted(_active[batches[0]["id"]]["batch"].events, key=lambda e: e.t_offset_secs)
         t = threading.Thread(
-            target=_drive,
-            args=(ordered, batches, customer_ids, sim_start, speed, redis_client, seed),
+            target=_drive_and_cleanup,
+            kwargs=dict(
+                ordered_events=ordered,
+                batches=batches,
+                customer_ids=customer_ids,
+                sim_start=sim_start,
+                speed=speed,
+                redis_client=redis_client,
+                seed=seed,
+            ),
             daemon=True,
             name=f"replay-{seed}",
         )
@@ -154,7 +164,9 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
             s.commit()
             try:
                 done = int(redis_client.incr("reflex:replay:fed"))
-                if done >= total * len(batches):
+                # fed counts events, not (event, batch) pairs — each event fans
+                # out to every batch in a single pass, so the ceiling is total.
+                if done >= total:
                     redis_client.set("reflex:replay:done", "1")
                     redis_client.delete("reflex:replay:running")
                     with _state_lock:
@@ -167,6 +179,27 @@ def _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client
         finally:
             s.close()
     log.info("replay_feed_complete")
+
+
+def _drive_and_cleanup(
+    *, ordered_events, batches, customer_ids, sim_start, speed, redis_client, seed
+) -> None:  # type: ignore[no-untyped-def]
+    """Runs _drive and always clears the live-state guard afterwards.
+
+    A stale `reflex:replay:running` key blocks every future demo start with
+    409, so it (and the _threads entry) must be released even if _drive dies
+    mid-batch.
+    """
+    try:
+        _drive(ordered_events, batches, customer_ids, sim_start, speed, redis_client, seed)
+    finally:
+        with _state_lock:
+            _threads.pop(str(seed), None)
+        try:
+            redis_client.delete("reflex:replay:running")
+            redis_client.set("reflex:replay:done", "1")
+        except Exception:
+            pass
 
 
 def run_webhook_storm(redis_client) -> dict[str, int]:  # type: ignore[no-untyped-def]
