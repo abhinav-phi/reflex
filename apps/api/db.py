@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from functools import lru_cache
 
@@ -10,9 +11,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 
+def _resolve_cloud_db(url: str, env_key: str) -> str:
+    """`localhost:15432` is only the baked-in docker-compose dev default.
+
+    Compose and CI always set DATABASE_URL* explicitly, so any run that reaches
+    that host WITHOUT env vars (Railway/Render/Antideploy zero-config) has no
+    Postgres there — hand it the bundled SQLite instead of dialing a refusal.
+    """
+    if "localhost:15432" in url and not os.environ.get(env_key):
+        return "sqlite:///./reflex-cloud.db"
+    return url
+
+
 @lru_cache
 def agent_engine():  # type: ignore[no-untyped-def]
-    url = get_settings().database_url
+    url = _resolve_cloud_db(get_settings().database_url, "DATABASE_URL")
     # Normalize to psycopg2 driver for CI and cloud (both have psycopg2-binary, psycopg scheme may not be available)
     if url.startswith("postgresql+psycopg://"):
         url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
@@ -44,13 +57,15 @@ def agent_engine():  # type: ignore[no-untyped-def]
 def eval_engine():  # type: ignore[no-untyped-def]
     # Proof runs up to 8 parallel arm-transactions on this engine; each holds
     # one connection for the whole arm — the pool must cover the worker count.
-    url = get_settings().database_url_eval
+    url = _resolve_cloud_db(get_settings().database_url_eval, "DATABASE_URL_EVAL")
     if url.startswith("postgresql+psycopg://"):
         url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    if "sqlite" in url:
+        return create_engine(url, connect_args={"check_same_thread": False})
     return create_engine(
         url,
         pool_pre_ping=True,
@@ -62,13 +77,15 @@ def eval_engine():  # type: ignore[no-untyped-def]
 
 @lru_cache
 def admin_engine():  # type: ignore[no-untyped-def]
-    url = get_settings().database_url_admin
+    url = _resolve_cloud_db(get_settings().database_url_admin, "DATABASE_URL_ADMIN")
     if url.startswith("postgresql+psycopg://"):
         url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     elif url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    if "sqlite" in url:
+        return create_engine(url, connect_args={"check_same_thread": False})
     return create_engine(url, pool_pre_ping=True)
 
 
