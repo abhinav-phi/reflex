@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { getToken, isTokenExpired, clearToken } from "./lib/api";
+import { ApiError, getToken, isTokenExpired, clearToken } from "./lib/api";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
@@ -11,7 +11,18 @@ import Ops from "./pages/Ops";
 import Onboarding from "./pages/Onboarding";
 
 const qc = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      // Never multiply a throttled burst: retry only 5xx/transport errors,
+      // not 4xx (401/403/429 already tell the user what to do).
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError) return error.status >= 500 && failureCount < 2;
+        return failureCount < 1; // transport-level failure (NetworkError/TypeError)
+      },
+      refetchOnWindowFocus: false,
+      staleTime: 5_000,
+    },
+  },
 });
 
 function Protected({ children }: { children: React.ReactNode }) {

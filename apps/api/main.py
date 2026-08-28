@@ -273,7 +273,7 @@ except Exception:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_origin_regex=r"^https://.*\.antideploy\.com$|^http://(localhost|127\.0\.0\.1):(5173|8080)$",
+    allow_origin_regex=r"^https://.*\.(antideploy|vercel|railway)\.[a-z]+$|^http://(localhost|127\.0\.0\.1):(5173|8080)$",
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Razorpay-Signature"],

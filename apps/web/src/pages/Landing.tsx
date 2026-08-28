@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, getToken } from "../lib/api";
 import type { LiveMetrics } from "../lib/api";
 import { formatINR, asPaise } from "../lib/format";
 import { useTitle } from "../hooks/useTitle";
@@ -8,12 +8,14 @@ import { useTitle } from "../hooks/useTitle";
 export default function Landing() {
   useTitle("Reflex — Recover more. Annoy less. Prove everything.");
   // Real data for the hero mockup — same source as Dashboard. Unauthenticated
-  // visitors get the illustrative preview values, clearly labeled as such.
+  // visitors get the illustrative preview values, clearly labeled as such —
+  // and no API request at all (it would 401 and waste edge budget).
   const { data: m } = useQuery({
     queryKey: ["landing-metrics"],
     queryFn: () => api<LiveMetrics>("/api/metrics/live"),
     retry: false,
     refetchOnWindowFocus: false,
+    enabled: !!getToken(),
   });
   const illustrative = !m;
 

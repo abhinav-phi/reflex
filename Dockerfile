@@ -16,4 +16,6 @@ COPY alembic.ini ./
 RUN pip install -e .
 
 EXPOSE 8000
-CMD ["uvicorn", "reflex.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render/Railway inject PORT; plain Docker (and Antideploy) leaves it unset
+# and the app should keep listening on 8000.
+CMD ["sh", "-c", "exec uvicorn reflex.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

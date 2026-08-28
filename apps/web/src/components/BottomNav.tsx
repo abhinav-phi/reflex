@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
+import { getRole, roleRankOf } from "../lib/api";
 
 /** Mobile bottom nav (desktop uses the ControlBar links). */
 export function BottomNav() {
   const { pathname } = useLocation();
+  const canSeeApprovals = (roleRankOf(getRole()) ?? -1) >= 2; // approver or admin
   const items: [string, string, string][] = [
     ["/dashboard", "dashboard", "Dashboard"],
-    ["/approvals", "fact_check", "Approvals"],
+    ...(canSeeApprovals ? [["/approvals", "fact_check", "Approvals"] as [string, string, string]] : []),
     ["/results", "analytics", "Results"],
     ["/audit", "receipt_long", "Audit"],
     ["/ops", "settings", "Ops"],

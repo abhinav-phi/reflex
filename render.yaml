@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: reflex-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    plan: free
+    numInstances: 1
+    # SQLite lives at /app/reflex-cloud.db. Free plan has no persistent disk:
+    # redeploys reseed a fresh DB (simulated data only). On a paid plan, attach
+    # a 1GB volume mounted at /app to keep data across restarts.
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"

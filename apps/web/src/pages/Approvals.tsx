@@ -21,7 +21,10 @@ export default function Approvals() {
   const q = useQuery({
     queryKey: ["approvals"],
     queryFn: () => api<{ items: ApprovalItem[] }>("/api/approvals"),
-    refetchInterval: 15000,
+    refetchInterval: 60000,
+    // Don't even ask the API when the session role can't decide — the request
+    // would 403 and the error card would read as a broken page.
+    enabled: canDecide,
   });
 
   const decide = useMutation({
@@ -41,7 +44,13 @@ export default function Approvals() {
         <h1 className="mt-8 md:mt-32 font-display text-headline-md text-primary">Approvals — human gate</h1>
         <p className="mt-4 font-mono text-label-mono text-on-surface-variant">Triggers: value &gt; ₹50,000 · mandate-class action · complaint handoff. Timeout ⇒ auto-decline (fail-closed).</p>
 
-        {!q.isLoading && q.isError && (
+        {!canDecide && (
+          <div className="mt-12 rounded-xl border border-dashed border-outline-variant bg-surface-container-lowest p-8 text-center text-sm text-on-surface-variant">
+            This queue is an approver/admin-only human gate. Your session is a viewer/operator role — nothing is missing; the dashboard and results continue to work.
+          </div>
+        )}
+
+        {canDecide && !q.isLoading && q.isError && (
           <div className="mt-12 rounded-xl border border-error/40 bg-error-container p-8 text-sm text-on-error-container">
             {q.error instanceof Error ? q.error.message : "Could not load the approvals queue. Try again later."}
           </div>

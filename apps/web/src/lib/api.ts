@@ -186,19 +186,36 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init?.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const url = withBase(path);
-  const res = await fetch(url, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers });
+  } catch {
+    // fetch only rejects on transport-level failures (DNS, CORS, connection
+    // reset by a throttling proxy). The host's Cloudflare edge rate-limits a
+    // burst by IP — the browser sees "Failed to fetch" — and it self-clears.
+    throw new NetworkError("API unreachable (often a momentary rate-limit) — retrying automatically");
+  }
   if (!res.ok) {
     // Expired/invalid session: drop the token and bounce to login (but never
     // while the login page itself is trying, or bad creds would redirect-loop).
     if (res.status === 401 && getToken() && !window.location.pathname.startsWith("/login")) {
       clearToken();
       window.location.assign("/login");
+    }
+    if (res.status === 429) {
+      throw new ApiError(429, "rate-limited — retrying automatically in a moment");
     }
     let msg = `${res.status}`;
     try {

@@ -128,7 +128,7 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
     "metrics_live": (60, 60),
     "metrics_eval": (60, 60),
     "eval_run": (2, 60),
-    "stream": (5, 60),
+    "stream": (30, 60),
     "ledger_verify": (6, 60),
     "auth_login": (20, 60),
 }

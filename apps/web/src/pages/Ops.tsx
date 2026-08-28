@@ -19,7 +19,7 @@ export default function Ops() {
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<Record<string, unknown>>("/api/metrics/live"),
-    refetchInterval: 15000,
+    refetchInterval: 60000,
   });
   const evalStatus = useQuery({
     queryKey: ["evalstatus"],
@@ -29,6 +29,7 @@ export default function Ops() {
     queryKey: ["guardrails"],
     queryFn: () => api<{ configured: boolean; merchant: { cfg: Record<string, unknown>; mode: string } | null }>("/api/onboarding/state"),
     retry: false,
+    enabled: (roleRankOf(getRole()) ?? -1) >= 3, // admin only — a lower role would just 403
   });
   const [msg, setMsg] = useState<string | null>(null);
   const [replay, setReplay] = useState<{ n: number; speed: number }>({ n: 214, speed: 100 });

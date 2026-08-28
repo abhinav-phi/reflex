@@ -22,12 +22,14 @@ export default function Dashboard() {
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<LiveMetrics>("/api/metrics/live"),
-    refetchInterval: 15000,
+    // 60s — SSE invalidates on events, so live demos stay fresh without
+    // hammering the host edge (a 5-15s cadence trips its IP rate-limit).
+    refetchInterval: 60000,
   });
   const episodes = useQuery({
     queryKey: ["episodes", armFilter],
     queryFn: () => api<{ total: number; items: EpisodeListItem[] }>(`/api/episodes?limit=60${armFilter ? `&arm=${armFilter}` : ""}`),
-    refetchInterval: 15000,
+    refetchInterval: 60000,
   });
   const detail = useQuery({
     queryKey: ["episode", openEpisode],
@@ -83,13 +85,19 @@ export default function Dashboard() {
           </div>
         </header>
 
+        {(metrics.isError || episodes.isError) && (
+          <div className="mb-8 rounded-xl border border-error/40 bg-error-container px-6 py-4 text-sm text-on-error-container" role="status">
+            Live data is temporarily unreachable — the host is rate-limiting this network (clears by itself in ~2 min). Retrying automatically every 60s; you can also refresh the page.
+          </div>
+        )}
+
         {/* Stat cards — 2x2 on mobile (single-col stack per mobile design), 4-col on lg */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-gutter">
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow relative overflow-hidden">
             <div className="w-6 h-1 bg-on-tertiary-container rounded-full mb-6" />
             <p className="font-sans text-body-md text-on-surface-variant mb-2">Failed value today</p>
             <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.failed_today_paise)) : "—"}</h2>
-            <p className="font-mono text-label-mono text-on-surface-variant">{m ? `${m.episodes_open} open episodes` : "loading live metrics…"}</p>
+            <p className="font-mono text-label-mono text-on-surface-variant">{m ? `${m.episodes_open} open episodes` : metrics.isError ? "unavailable — auto-retrying" : "loading live metrics…"}</p>
           </div>
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow">
             <div className="h-1 mb-6" />

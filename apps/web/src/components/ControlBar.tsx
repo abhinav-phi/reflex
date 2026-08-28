@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { api, post } from "../lib/api";
+import { api, post, getRole, roleRankOf } from "../lib/api";
 import { useUi } from "../store";
 import { SimulatedBadge, TestModeBadge } from "./Chips";
 
@@ -10,13 +10,16 @@ export function ControlBar() {
   const location = useLocation();
   const { mode, setMode, banner, setBanner, sseConnected } = useUi();
   const [confirmHalt, setConfirmHalt] = useState(false);
+  const canSeeApprovals = (roleRankOf(getRole()) ?? -1) >= 2; // approver or admin
 
   // Sync the mode pill from the API on load — SSE only updates it on changes,
   // so a fresh page load would otherwise show a stale default (advisory).
+  // 30s cadence keeps this far under the host edge rate-limit; SSE keeps the
+  // pill fresh on real mode changes.
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<{ mode: string; llm_outage?: boolean }>("/api/metrics/live"),
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   });
   useEffect(() => {
     if (metrics.data?.mode) setMode(metrics.data.mode);
@@ -56,7 +59,8 @@ export function ControlBar() {
             ["/results", "Results"],
             ["/audit", "Audit"],
             ["/ops", "Ops"],
-          ].map(([to, label]) => {
+          ].filter(([to]) => to !== "/approvals" || canSeeApprovals)
+            .map(([to, label]) => {
             const active = location.pathname === to;
             return (
               <Link key={to} to={to} className={`font-mono text-label-mono ${active ? "text-primary font-bold border-b-2 border-primary pb-1" : "text-on-surface-variant font-medium hover:text-primary"} transition-colors`}>
