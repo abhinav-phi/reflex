@@ -12,17 +12,19 @@ This doc is the self-service path to the split setup.
 
 ## Backend — Railway (recommended) or Render
 
-Zero secrets needed: absent DATABASE_URL/REDIS_URL the app uses SQLite
-(`/app/reflex-cloud.db`) and an in-memory fake Redis, bootstraps its schema on
-startup, auto-seeds the 4 demo users (`admin@reflex.dev`, `approver@`,
-`operator@`, `viewer@reflex.dev`, password `reflex-demo`).
+**PostgreSQL required**: the alembic migrations are PostgreSQL-only
+(`gen_random_uuid()`, `JSONB`, `to_regclass`), so the app must get a
+`DATABASE_URL`. The SQLite fallback in `apps/api/db.py` only covers the Redis
+broker/streams layer (absent `REDIS_URL` ⇒ in-memory fake) — it does not
+replace the schema.
 
 Railway:
 1. New Project → Deploy from GitHub → `abhinav-phi/reflex` (root, Dockerfile auto).
-2. Start command: none needed (Dockerfile CMD) — but ensure PORT env is honored
-   (the Dockerfile already is `${PORT:-8000}`).
-3. Optional: volume at `/app` to persist SQLite across redeploys.
-4. Copy the public URL (e.g. `https://reflex-api-production.up.railway.app`).
+2. New Project → **Database → PostgreSQL** (plugin). Railway links it automatically
+   and injects `DATABASE_URL` into the API service.
+3. Redeploy when the DB is ready (env change triggers a restart).
+4. Optional: volume at `/app` to persist other runtime files across redeploys.
+5. Copy the public URL (e.g. `https://reflex-api-production.up.railway.app`).
 
 Render (alternative):
 1. New Web Service → GitHub → `reflex` → Runtime: Docker. (Or import
