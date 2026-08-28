@@ -95,7 +95,14 @@ def agent_session() -> Iterator[Session]:
 
 
 def get_redis():  # type: ignore[no-untyped-def]
+    import os
+
     import redis
+
+    # If the platform did not provide a REDIS_URL (e.g. Antideploy), use the
+    # in-memory fake instead of pointing a real client at a dead localhost:6379.
+    if not os.environ.get("REDIS_URL"):
+        return _make_fake_redis()  # type: ignore[return-value]
 
     url = get_settings().redis_url
     # Antideploy Node build has no redis:6379 host - fallback to in-memory fake for demo
@@ -112,46 +119,51 @@ def get_redis():  # type: ignore[no-untyped-def]
                 socket.getaddrinfo(host, 6379)
                 socket.setdefaulttimeout(None)
             except socket.gaierror:
-                # Return in-memory fake that mimics Redis for counters/pubsub
-                class _FakeRedis:
-                    def __init__(self):
-                        self._data = {}
-                        self._pub = []
-
-                    def get(self, k):
-                        return self._data.get(k)
-
-                    def set(self, k, v, *a, **kw):
-                        self._data[k] = str(v) if isinstance(v, bytes) else v
-
-                    def setex(self, k, ttl, v):
-                        self._data[k] = str(v)
-
-                    def incr(self, k):
-                        self._data[k] = str(int(self._data.get(k, "0")) + 1)
-                        return int(self._data[k])
-
-                    def publish(self, *a, **kw):
-                        return 0
-
-                    def pubsub(self):
-                        class _Pub:
-                            def subscribe(self, *a, **kw):
-                                pass
-
-                            def get_message(self, *a, **kw):
-                                return None
-
-                            def close(self):
-                                pass
-
-                        return _Pub()
-
-                    def xadd(self, *a, **kw):
-                        return "0-0"
-
-                    def get_connection(self, *a, **kw):
-                        raise Exception("fake")
-
-                return _FakeRedis()  # type: ignore[return-value]
+                return _make_fake_redis()  # type: ignore[return-value]
     return redis.Redis.from_url(url, decode_responses=True)
+
+
+def _make_fake_redis():  # type: ignore[no-untyped-def]
+    """In-memory fake that mimics Redis for counters/pubsub (cloud deploys)."""
+
+    class _FakeRedis:
+        def __init__(self):
+            self._data = {}
+            self._pub = []
+
+        def get(self, k):
+            return self._data.get(k)
+
+        def set(self, k, v, *a, **kw):
+            self._data[k] = str(v) if isinstance(v, bytes) else v
+
+        def setex(self, k, ttl, v):
+            self._data[k] = str(v)
+
+        def incr(self, k):
+            self._data[k] = str(int(self._data.get(k, "0")) + 1)
+            return int(self._data[k])
+
+        def publish(self, *a, **kw):
+            return 0
+
+        def pubsub(self):
+            class _Pub:
+                def subscribe(self, *a, **kw):
+                    pass
+
+                def get_message(self, *a, **kw):
+                    return None
+
+                def close(self):
+                    pass
+
+            return _Pub()
+
+        def xadd(self, *a, **kw):
+            return "0-0"
+
+        def get_connection(self, *a, **kw):
+            raise Exception("fake")
+
+    return _FakeRedis()
