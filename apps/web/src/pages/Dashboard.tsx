@@ -22,14 +22,14 @@ export default function Dashboard() {
   const metrics = useQuery({
     queryKey: ["metrics"],
     queryFn: () => api<LiveMetrics>("/api/metrics/live"),
-    // 60s — SSE invalidates on events, so live demos stay fresh without
-    // hammering the host edge (a 5-15s cadence trips its IP rate-limit).
-    refetchInterval: 60000,
+    // 15s = 8 req/min — safe for Railway (no Cloudflare edge here); SSE still
+    // makes the table refresh within seconds during demo runs.
+    refetchInterval: 15000,
   });
   const episodes = useQuery({
     queryKey: ["episodes", armFilter],
     queryFn: () => api<{ total: number; items: EpisodeListItem[] }>(`/api/episodes?limit=60${armFilter ? `&arm=${armFilter}` : ""}`),
-    refetchInterval: 60000,
+    refetchInterval: 15000,
   });
   const detail = useQuery({
     queryKey: ["episode", openEpisode],
