@@ -84,7 +84,7 @@ null-safe degrades such responses (and the run itself stayed green via conservat
 ## 4. EV-policy anomaly (honest negative result — now quantified)
 
 Ablation **A2 (EV policy off) scored HIGHER than full Reflex: 36.35% [33.89, 38.99] vs 31.27%**
-[28.94, 33.98] [SIMULATED] (at higher cost, ₹0.57/₹100, and higher complaints, 0.522%). Under the current
+[28.91, 33.9] [SIMULATED] (at higher cost, ₹0.57/₹100, and higher complaints, 0.522%). Under the current
 simulator priors, the EV policy's selectivity suppresses contacts but also suppresses recovered value.
 This artifact is committed verbatim per PROTOCOL §6 and has **not been tuned away post hoc**.
 
