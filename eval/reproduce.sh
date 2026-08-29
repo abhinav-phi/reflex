@@ -34,7 +34,10 @@ if [ -f ".venv/Scripts/python.exe" ]; then
 else
   PY=".venv/bin/python"
 fi
-$PY -m pip install -e . --quiet
+# [dev] installs alembic (schema migrations) alongside runtime deps — without it
+# `python -m alembic` resolves to the repo's local alembic/ migrations directory
+# (a namespace package with no __main__) and the clean-clone run dies here.
+$PY -m pip install -e ".[dev]" --quiet
 
 export DATABASE_URL_ADMIN="${DATABASE_URL_ADMIN:-postgresql+psycopg://postgres:reflex_dev_pg@localhost:15432/reflex}"
 export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex}"
