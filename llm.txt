@@ -87,10 +87,10 @@ outcome is described in `docs/limitations.md` §3b), N=3,000 episodes × seeds {
 | Arm | Recovery % [95% CI] | Cost / ₹100 | Complaints | Median TTR |
 |---|---|---|---|---|
 | B0 do-nothing | 4.68 [3.71, 5.75] | — | 0% | 35.7 h |
-| B1 tuned naive | 21.22 [19.10, 23.36] | ₹0.15 | 0.478% | 5.0 h |
-| **Reflex** | **31.27 [28.94, 33.98]** | **₹0.27** | **0.256%** | **10.3 h** |
+| B1 tuned naive | 21.22 [19.15, 23.46] | ₹0.15 | 0.478% | 5.0 h |
+| **Reflex** | **31.27 [28.91, 33.9]** | **₹0.27** | **0.256%** | **10.3 h** |
 
-- Incremental recovery vs B1: **+10.05 pp [+7.83, +12.62]** (CI excludes zero).
+- Incremental recovery vs B1: **+10.05 pp [+7.68, +12.56]** (CI excludes zero).
 - Gate scorecard: G2 cost ≤ ₹3.5 **PASS** · G3 complaints < 0.5% **PASS** · G5 same-seed
   reproduction **PASS (proven)** · **G1 ≥ +15 pp MISSED at +10.05 pp — reported honestly** ·
   G6 vacuous without LLM differentiation.
