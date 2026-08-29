@@ -43,6 +43,12 @@ export DATABASE_URL_ADMIN="${DATABASE_URL_ADMIN:-postgresql+psycopg://postgres:r
 export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://reflex_agent:agent_dev_pw@localhost:15432/reflex}"
 export DATABASE_URL_EVAL="${DATABASE_URL_EVAL:-postgresql+psycopg://reflex_eval:eval_dev_pw@localhost:15432/reflex}"
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
+# The 0001 migration creates the app roles with env-overridable passwords
+# (defaults are the CI-secure ones, which would NOT match the URLs above —
+# compose passes these same vars to its services).
+export REFLEX_AGENT_PW="${REFLEX_AGENT_PW:-agent_dev_pw}"
+export REFLEX_EVAL_PW="${REFLEX_EVAL_PW:-eval_dev_pw}"
+export REFLEX_ADMIN_PW="${REFLEX_ADMIN_PW:-admin_dev_pw}"
 export PYTHONIOENCODING=utf-8
 
 # 3) schema + reference data (idempotent)
