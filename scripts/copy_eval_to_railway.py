@@ -12,6 +12,7 @@ pre-registered protocol runs. Idempotent (ON CONFLICT DO NOTHING).
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -53,7 +54,7 @@ def main() -> None:
                      "VALUES (CAST(:id AS uuid), CAST(:batch_id AS uuid), :arm, :ablation, "
                      "CAST(:config AS jsonb), :preregistered_tag, :created_at) ON CONFLICT (id) DO NOTHING"),
                 {"id": str(r["id"]), "batch_id": str(r["batch_id"]), "arm": str(r["arm"]),
-                 "ablation": r["ablation"], "config": r["config"],
+                 "ablation": r["ablation"], "config": json.dumps(r["config"], ensure_ascii=False),
                  "preregistered_tag": r["preregistered_tag"], "created_at": r["created_at"]},
             )
         for m in metrics:
