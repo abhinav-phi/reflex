@@ -63,9 +63,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # redeploy. Recompute the durable totals from Postgres so the Ops page shows
     # real numbers after a restart instead of zeros.
     try:
-        from sqlalchemy import text as _text
-
         from reflex.api.db import agent_sessionmaker as _cm
+        from sqlalchemy import text as _text
 
         _s = _cm()()
         try:
