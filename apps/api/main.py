@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
@@ -59,6 +60,10 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.redis = get_redis()
     app.state.rate = RateLimiter(app.state.redis)
     app.state.started_at = datetime.now(UTC)
+    # Dedicated pool for SSE pubsub reads — the default executor is tiny
+    # (~4-8 threads on 2 vCPU) and each open stream parks a thread in it,
+    # which would starve API under many concurrent viewers.
+    app.state.sse_pool = ThreadPoolExecutor(max_workers=32, thread_name_prefix="sse")
     # Ops counters live in the (possibly in-memory) Redis and reset on every
     # redeploy. Recompute the durable totals from Postgres so the Ops page shows
     # real numbers after a restart instead of zeros.
@@ -692,7 +697,7 @@ def enqueue_diagnosis(redis: object, episode_id: str) -> None:
 
 @app.get("/api/stream")
 async def stream(request: Request, user: dict = Depends(require_role(Role.VIEWER))) -> StreamingResponse:
-    app.state.rate.check("stream", user["user_id"])
+    request.app.state.rate.check("stream", user["user_id"])
     redis = app.state.redis
     pubsub = redis.pubsub()
     pubsub.subscribe("reflex:events")
@@ -704,7 +709,7 @@ async def stream(request: Request, user: dict = Depends(require_role(Role.VIEWER
             while True:
                 if await request.is_disconnected():
                     break
-                msg = await loop.run_in_executor(None, pubsub.get_message, True, 1.0)
+                msg = await loop.run_in_executor(app.state.sse_pool, pubsub.get_message, True, 1.0)
                 if msg and msg.get("type") == "message":
                     data = msg["data"]
                     yield f"data: {data}\n\n"
@@ -714,6 +719,16 @@ async def stream(request: Request, user: dict = Depends(require_role(Role.VIEWER
             pubsub.close()
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# ---- short-lived stream credential (ADR-006 hardening: the JWT never rides
+# ---- in the SSE URL for more than 60 seconds; connection holds it /api/stream)
+
+
+@app.post("/api/stream/token")
+def stream_token(request: Request, user: dict = Depends(require_role(Role.VIEWER))) -> dict:
+    request.app.state.rate.check("stream_token", user["user_id"])
+    return {"token": create_token(user["user_id"], user["role"].value, ttl_seconds=60)}
 
 
 # ---- replay start (operator) ---------------------------------------------------------

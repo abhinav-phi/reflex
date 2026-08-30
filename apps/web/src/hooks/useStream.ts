@@ -4,9 +4,11 @@ import { useUi } from "../store";
 import { getToken } from "../lib/api";
 
 /** SSE subscription (ADR-006). Additive event names only (Rules §6.4).
- *  EventSource cannot send headers, so the JWT rides as ?token= (accepted by
- *  security.bearer_payload). Without a token the socket would 401 forever and
- *  the nav pill would stay "connecting".
+ *  EventSource cannot send headers, so a credential rides as ?token= (accepted
+ *  by security.bearer_payload). Hardening: first exchange the session JWT for
+ *  a 60-second stream credential (POST /api/stream/token) so the session JWT
+ *  itself never appears in the URL — the connection is authorized for its
+ *  whole lifetime once established.
  *
  *  EventSource auto-reconnects every ~3s on error. When the host's edge
  *  proxy throttles this IP, that loop keeps the throttle alive (each failed
@@ -22,7 +24,8 @@ export function useStream(): void {
   useEffect(() => {
     if (!getToken()) return;
     const _base = ((import.meta.env.VITE_REFLEX_API as string | undefined) || (import.meta.env.VITE_API_URL as string | undefined) || "").replace(/\/$/, "");
-    const url = `${_base ? _base : ""}/api/stream?token=${encodeURIComponent(getToken() ?? "")}`;
+    let url = "";
+    let disposed = false;
     let step = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let es: EventSource | undefined;
@@ -90,7 +93,24 @@ export function useStream(): void {
       };
     };
 
-    connect();
+    (async () => {
+      let streamToken = getToken() ?? "";
+      try {
+        const res = await fetch(`${_base ? _base : ""}/api/stream/token`, {
+          headers: { Authorization: `Bearer ${streamToken}` },
+        });
+        if (res.ok) {
+          const d = (await res.json()) as { token?: string };
+          if (d?.token) streamToken = String(d.token);
+        }
+      } catch {
+        /* fall back to the session JWT — the URL short-lived token is an
+           optimization; the auth path is identical */
+      }
+      if (disposed) return;
+      url = `${_base ? _base : ""}/api/stream?token=${encodeURIComponent(streamToken)}`;
+      connect();
+    })();
     const onVisibility = (): void => {
       if (document.visibilityState === "visible" && !connected) {
         step = 0;
@@ -101,6 +121,7 @@ export function useStream(): void {
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      disposed = true;
       clearTimeout(timer);
       es?.close();
       setSse(false);

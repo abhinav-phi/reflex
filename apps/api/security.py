@@ -35,11 +35,12 @@ def verify_password(password: str, stored: str) -> bool:
 # ---- JWT ------------------------------------------------------------------------
 
 
-def create_token(user_id: str, role: str) -> str:
+def create_token(user_id: str, role: str, *, ttl_seconds: int | None = None) -> str:
     s = get_settings()
     now = int(time.time())
+    exp = now + (ttl_seconds if ttl_seconds is not None else s.jwt_ttl_hours * 3600)
     return jwt.encode(
-        {"sub": user_id, "role": role, "iat": now, "exp": now + s.jwt_ttl_hours * 3600},
+        {"sub": user_id, "role": role, "iat": now, "exp": exp},
         s.jwt_secret,
         algorithm="HS256",
     )

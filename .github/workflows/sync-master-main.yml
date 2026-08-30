@@ -1,0 +1,22 @@
+name: sync-master-main
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: master
+      # Production deploys (Vercel/Railway/CI) track `main`. Work happens on
+      # `master`; every push fast-forwards main. A non-fast-forward push fails
+      # loudly here instead of silently diverging.
+      - name: Fast-forward main
+        run: git push origin master:main
