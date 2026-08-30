@@ -277,12 +277,12 @@ function EvBridge({ episode, actionId }: { episode: EpisodeDetail; actionId: str
     ev: Number(cand?.ev_paise ?? ev["ev_paise"] ?? 0),
   };
   return (
-    <Overlay title="EV drawer — AI-ranked rationale" onClose={() => useUi.getState().openEvDrawer(null)} width="480px">
-      <div className="border-b border-outline-variant px-6 md:px-24 py-6 md:py-16">
+    <Overlay title="EV drawer — AI-ranked rationale" onClose={() => useUi.getState().openEvDrawer(null)} width="min(100vw, 600px)">
+      <div className="border-b border-outline-variant px-6 py-6">
         <div className="text-[11px] uppercase tracking-wide text-ai-accent">✦ AI-ranked action</div>
         <div className="mt-2 font-mono text-sm">EV {formatINR(asPaise(terms.ev))} = p {terms.p.toFixed(2)} × {formatINR(asPaise(terms.gain))} − {formatINR(asPaise(terms.cost))} − {formatINR(asPaise(terms.annoyance))}</div>
       </div>
-      <div className="px-6 md:px-24 py-6 md:py-16">
+      <div className="px-6 py-6">
         <GuardrailSnapshot guard={guard} policy={action?.policy_version ?? "?"} />
         <h4 className="mt-8 text-[11px] uppercase text-on-surface-variant">Runner-ups</h4>
         <ul className="mt-4 space-y-2 font-mono text-[11px]">

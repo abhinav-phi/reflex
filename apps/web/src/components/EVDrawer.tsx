@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 export function GuardrailSnapshot({ guard, policy }: { guard: Record<string, unknown>; policy: string }) {
   return (
-    <div className="mx-24 mb-24 rounded-card border border-outline-variant bg-surface-container p-12 font-mono text-[11px] leading-relaxed text-on-surface">
+    <div className="mx-6 mb-6 rounded-card border border-outline-variant bg-surface-container p-12 font-mono text-[11px] leading-relaxed text-on-surface">
       <div>policy {String(policy)}</div>
       <div>
         caps {String(guard["caps"] ?? "—")} · contacts today {String(guard["contacts_today"] ?? "—")}
