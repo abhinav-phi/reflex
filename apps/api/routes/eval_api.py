@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,13 +15,11 @@ PREREG_TAG = "eval-preregistered-v1"
 
 
 def _tag_exists() -> bool:
-    try:
-        out = subprocess.run(
-            ["git", "tag", "--list", PREREG_TAG], capture_output=True, text=True, timeout=10
-        )
-        return bool(out.stdout.strip())
-    except Exception:
-        return False
+    # Single source of truth: git history first, then the GitHub tags API
+    # (the deployed container has no git metadata). Cached + fails closed.
+    from reflex.eval.runner import preregistration_tag_present
+
+    return preregistration_tag_present()
 
 
 @router.post("/eval/run")
