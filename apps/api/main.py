@@ -273,7 +273,7 @@ except Exception:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_origin_regex=r"^https://.*\.(antideploy|vercel|railway)\.[a-z]+$|^http://(localhost|127\.0\.0\.1):(5173|8080)$",
+    allow_origin_regex=r"^https://(reflex-[a-z0-9-]+\.vercel\.app|([a-z0-9-]+\.)?antideploy\.com)$|^http://(localhost|127\.0\.0\.1):(5173|8080)$",
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Razorpay-Signature"],
@@ -398,7 +398,7 @@ def healthz() -> dict:
 
 
 @app.get("/debug/env")
-def debug_env() -> dict:
+def debug_env(user: dict = Depends(require_role(Role.ADMIN))) -> dict:
     import os
 
     url = os.environ.get("DATABASE_URL", "")
@@ -409,9 +409,7 @@ def debug_env() -> dict:
 
 
 @app.get("/debug/login_check")
-def debug_login_check() -> dict:
-    import traceback
-
+def debug_login_check(user: dict = Depends(require_role(Role.ADMIN))) -> dict:
     try:
         from reflex.api.db import agent_sessionmaker as _mk
         from sqlalchemy import text as _t
@@ -423,14 +421,30 @@ def debug_login_check() -> dict:
         finally:
             s.close()
     except Exception as e:
-        return {"ok": False, "error": str(e), "trace": traceback.format_exc()[:2000]}
+        # no traceback in the response — internal details stay in server logs
+        log.error("debug_login_check_failed", error=str(e)[:200])
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@app.get("/debug/migrate")
+def debug_migrate_status(user: dict = Depends(require_role(Role.ADMIN))) -> dict:
+    """Status only — never mutates on GET."""
+    from reflex.api.db import agent_sessionmaker as _mk
+    from sqlalchemy import text as _t
+
+    s = _mk()()
+    try:
+        cnt = s.execute(_t("SELECT COUNT(*) FROM runtime.users")).scalar()  # type: ignore[attr-defined]
+        return {"ok": True, "users_count": cnt, "note": "POST to run migrations (admin only)"}
+    except Exception as e:
+        log.error("debug_migrate_status_failed", error=str(e)[:200])
+        return {"ok": False, "error": str(e)[:200]}
+    finally:
+        s.close()
 
 
 @app.post("/debug/migrate")
-@app.get("/debug/migrate")
-def debug_migrate() -> dict:
-    import traceback
-
+def debug_migrate(user: dict = Depends(require_role(Role.ADMIN))) -> dict:
     try:
         import importlib
         from pathlib import Path as _Path
@@ -486,17 +500,17 @@ def debug_migrate() -> dict:
             _seed_m()
             seeded = True
         except Exception as _se:
+            log.error("debug_migrate_seed_failed", error=str(_se)[:200])
             seeded = False
-            seed_err = str(_se)
-            seed_trace = traceback.format_exc()[:2000]
-            return {"ok": True, "migrated": True, "users_count": cnt, "seeded": seeded, "seed_error": seed_err, "seed_trace": seed_trace}
+            return {"ok": True, "migrated": True, "users_count": cnt, "seeded": seeded, "seed_error": str(_se)[:200]}
         return {"ok": True, "migrated": True, "users_count": cnt, "seeded": seeded}
     except Exception as e:
-        return {"ok": False, "error": str(e), "trace": traceback.format_exc()[:4000]}
+        log.error("debug_migrate_failed", error=str(e)[:200])
+        return {"ok": False, "error": str(e)[:200]}
 
 
 @app.get("/metrics")
-def metrics_snapshot() -> dict:
+def metrics_snapshot(user: dict = Depends(require_role(Role.VIEWER))) -> dict:
     r: object = getattr(app.state, "redis", None)
     keys = [
         "events_ingested", "duplicates_collapsed", "episodes_created",
