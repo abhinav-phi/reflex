@@ -26,7 +26,7 @@ def episode_ledger(
         rows = s.execute(
             text(
                 "SELECT seq, episode_id::text AS episode_id, action_id::text AS action_id, "
-                "event, event::text AS event_text, prev_hash, hash, created_at FROM runtime.action_ledger "
+                "event, prev_hash, hash, created_at FROM runtime.action_ledger "
                 "WHERE episode_id = CAST(:e AS uuid) ORDER BY seq"
             ),
             {"e": episode_id},

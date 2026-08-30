@@ -1,14 +1,14 @@
 """One-off ledger chain repair: re-stamp prev_hash/hash for every row.
 
-Why: hashes were originally computed over the Python-side canonical JSON,
-but the event column is jsonb — Postgres normalizes values (float rendering,
-unicode) on storage, so verify (which reads event::text) could derive a
-different byte string for some rows and report a false TAMPER.
+Why: some historical rows were appended with hashes computed over the
+in-memory event dict, while Postgres jsonb normalizes values on storage —
+so verify (which re-reads the stored event) could derive a different digest
+for those rows and report a false TAMPER (e.g. seq 3562).
 
-Append + verify now both hash `event::text` (see packages/ledger/chain.py).
-This script re-stamps the existing rows with that same rule, in seq order,
-so the chain becomes self-consistent again. Tamper-evidence is preserved:
-any later edit to a stored event breaks the recomputed chain.
+Fix: re-derive the chain from the STORED events (the jsonb-normalized dicts,
+exactly what verify re-reads), in seq order, using the original hash rule
+(compute_hash over the dict). Tamper-evidence is preserved: any later edit
+to a stored event breaks the recomputed chain.
 
 Run while no replay/eval is writing (check /api/eval/status first):
 
@@ -17,23 +17,12 @@ Run while no replay/eval is writing (check /api/eval/status first):
 
 from __future__ import annotations
 
-import hashlib
 import os
 import sys
 
 from sqlalchemy import create_engine, text
 
 GENESIS_PREV = "0" * 64
-
-
-def _digest(seq: int, prev_hash: str, event_text: str) -> str:
-    h = hashlib.sha256()
-    h.update(str(seq).encode("ascii"))
-    h.update(b"|")
-    h.update(prev_hash.encode("ascii"))
-    h.update(b"|")
-    h.update(event_text.encode("utf-8"))
-    return h.hexdigest()
 
 
 def main() -> None:
@@ -44,13 +33,15 @@ def main() -> None:
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     eng = create_engine(url, pool_pre_ping=True)
 
+    from reflex.ledger.chain import compute_hash
+
     with eng.begin() as conn:
         rows = conn.execute(
-            text("SELECT seq, event::text FROM runtime.action_ledger ORDER BY seq")
+            text("SELECT seq, event FROM runtime.action_ledger ORDER BY seq")
         ).fetchall()
         prev = GENESIS_PREV
-        for seq, event_text in rows:
-            d = _digest(int(seq), prev, str(event_text))
+        for seq, event in rows:
+            d = compute_hash(int(seq), prev, dict(event))
             conn.execute(
                 text("UPDATE runtime.action_ledger SET prev_hash = :p, hash = :h WHERE seq = :s"),
                 {"p": prev, "h": d, "s": int(seq)},

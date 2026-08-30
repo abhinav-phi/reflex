@@ -61,24 +61,6 @@ def compute_hash(seq: int, prev_hash: str, event: dict[str, Any]) -> str:
     return h.hexdigest()
 
 
-def compute_hash_text(seq: int, prev_hash: str, event_text: str) -> str:
-    """Hash over the jsonb-normalized event text (`event::text`).
-
-    The event column is jsonb, so Postgres normalizes values (float rendering,
-    unicode escapes) before storage. Hashing the Python-side canonical form
-    made verify re-derive a DIFFERENT byte string for rows whose payload
-    jsonb-normalizes — a false "TAMPER". Hashing `event::text` makes append
-    and verify agree by construction (both see the stored bytes).
-    """
-    h = hashlib.sha256()
-    h.update(str(seq).encode("ascii"))
-    h.update(b"|")
-    h.update(prev_hash.encode("ascii"))
-    h.update(b"|")
-    h.update(event_text.encode("utf-8"))
-    return h.hexdigest()
-
-
 class LedgerWriter:
     """Appends events to runtime.action_ledger.
 
@@ -119,28 +101,21 @@ class LedgerWriter:
         seq = last_seq + 1
         ev = dict(event)
         ev.setdefault("ts", (at or datetime.now(UTC)).isoformat())
-        # Insert first, then hash the jsonb-normalized text Postgres actually
-        # stored (RETURNING event::text) so verify — which reads the same
-        # text — recomputes an identical digest. Two statements, same txn.
-        stored_event_text = self.s.execute(
+        digest = compute_hash(seq, prev_hash, ev)
+        self.s.execute(
             text(
                 "INSERT INTO runtime.action_ledger "
                 "(episode_id, action_id, event, prev_hash, hash, created_at) "
-                "VALUES (:episode_id, :action_id, CAST(:event AS jsonb), :prev_hash, '', COALESCE(:at, now())) "
-                "RETURNING event::text"
+                "VALUES (:episode_id, :action_id, CAST(:event AS jsonb), :prev_hash, :hash, COALESCE(:at, now()))"
             ),
             {
                 "episode_id": episode_id,
                 "action_id": action_id,
                 "event": json.dumps(ev, ensure_ascii=False),
                 "prev_hash": prev_hash,
+                "hash": digest,
                 "at": at,
             },
-        ).scalar_one()
-        digest = compute_hash_text(seq, prev_hash, stored_event_text)
-        self.s.execute(
-            text("UPDATE runtime.action_ledger SET hash = :hash WHERE seq = :seq"),
-            {"hash": digest, "seq": seq},
         )
         self._seq = seq
         self._prev = digest
@@ -196,15 +171,7 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
         event = row["event"]  # type: ignore[index]
         prev_hash = str(row["prev_hash"])  # type: ignore[index]
         digest = str(row["hash"])  # type: ignore[index]
-        # DB rows carry event::text (jsonb-normalized) — hash that. In-memory
-        # rows (Proof harness) have no event_text and keep dict hashing.
-        event_text = row.get("event_text") if hasattr(row, "get") else None
-        expected = (
-            compute_hash_text(seq, prev, str(event_text))
-            if event_text is not None
-            else compute_hash(seq, prev, event)
-        )
-        if seq <= prev_seq or prev_hash != prev or expected != digest:
+        if seq <= prev_seq or prev_hash != prev or compute_hash(seq, prev, event) != digest:
             return False, seq, len(rows)
         prev_seq = seq
         prev = digest
@@ -214,7 +181,7 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
 def verify_db(session: Session) -> tuple[bool, int | None, int]:
     stmt = session.execute(
         text(
-            "SELECT seq, event::text, prev_hash, hash FROM runtime.action_ledger ORDER BY seq"
+            "SELECT seq, event, prev_hash, hash FROM runtime.action_ledger ORDER BY seq"
         )
     )
     valid = True
@@ -222,12 +189,12 @@ def verify_db(session: Session) -> tuple[bool, int | None, int]:
     checked = 0
     prev_seq = 0
     prev = GENESIS_PREV
-    for seq, event_text, prev_hash, digest in stmt:
+    for seq, event, prev_hash, digest in stmt:
         checked += 1
         ok = (
             int(seq) > prev_seq
             and prev_hash == prev
-            and compute_hash_text(int(seq), prev, str(event_text)) == digest
+            and compute_hash(int(seq), prev, dict(event)) == digest
         )
         if not ok and valid:
             valid = False
