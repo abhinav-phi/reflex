@@ -42,7 +42,7 @@ export default function Landing() {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-gutter min-h-[70vh] items-center mb-32 relative">
           <div className="flex flex-col gap-6 z-10">
             <div className="font-mono text-label-mono uppercase text-on-tertiary-container tracking-widest flex items-center gap-2">
-              <span>AI REVENUE RECOVERY</span><span className="text-outline-variant">/</span><span>01</span>
+              <span>AI REVENUE RECOVERY</span><span className="text-outline-variant">/</span><span>03</span>
             </div>
             <h1 className="font-display text-display-lg-mobile md:text-display-lg text-primary leading-none">
               Recover more.<br /><span className="text-on-primary-container">Annoy less.</span><br />Prove everything.
