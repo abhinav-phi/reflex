@@ -59,6 +59,47 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.redis = get_redis()
     app.state.rate = RateLimiter(app.state.redis)
     app.state.started_at = datetime.now(UTC)
+    # Ops counters live in the (possibly in-memory) Redis and reset on every
+    # redeploy. Recompute the durable totals from Postgres so the Ops page shows
+    # real numbers after a restart instead of zeros.
+    try:
+        from reflex.api.db import agent_sessionmaker as _cm
+
+        _s = _cm()()
+        try:
+            _seed: dict[str, int] = {}
+            _seed["episodes_created"] = _s.execute(
+                text("SELECT COUNT(*) FROM runtime.episodes")
+            ).scalar() or 0
+            _seed["dx_rule"] = _s.execute(
+                text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'rule'")
+            ).scalar() or 0
+            _seed["dx_llm"] = _s.execute(
+                text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'llm'")
+            ).scalar() or 0
+            _seed["dispatched"] = _s.execute(
+                text("SELECT COUNT(*) FROM runtime.actions WHERE dispatched_at IS NOT NULL")
+            ).scalar() or 0
+            _seed["recovered"] = _s.execute(
+                text("SELECT COUNT(*) FROM runtime.outcomes WHERE outcome = 'recovered'")
+            ).scalar() or 0
+            _shield = _s.execute(
+                text(
+                    "SELECT event->>'type' AS t, COUNT(*) FROM runtime.action_ledger "
+                    "WHERE event->>'type' IN ('ACTION_BLOCKED_AT_DISPATCH','APPROVAL_REQUESTED') "
+                    "GROUP BY 1"
+                )
+            ).all()
+            _by_type = {t: int(n) for t, n in _shield}
+            _seed["shield_block"] = _by_type.get("ACTION_BLOCKED_AT_DISPATCH", 0)
+            _seed["shield_approval"] = _by_type.get("APPROVAL_REQUESTED", 0)
+        finally:
+            _s.close()
+        for _k, _v in _seed.items():
+            app.state.redis.set(f"reflex:ctr:{_k}", _v)
+        log.info("counters_seeded_from_db", **_seed)
+    except Exception as exc:
+        log.warning("counters_seed_skipped", error=str(exc)[:200])
     # Bootstrap schema if missing (cloud deploy, no alembic migrate job available)
     try:
         from reflex.api.bootstrap import bootstrap as _bootstrap
