@@ -249,17 +249,19 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # demo pipeline (diagnosis → decision → dispatch → outcome) completes.
     _stop_workers = threading.Event()
     app.state._stop_workers = _stop_workers
-    if not os.environ.get("REDIS_URL"):
-        from reflex.workers.runner import run_decision, run_diagnosis, run_outcome
+    # Always run the workers embedded in the API process (single-container
+    # deployments everywhere — Antideploy with the in-memory fake, Railway
+    # with a real Redis). With real Redis the same worker functions consume
+    # the real stream/consumer-group API, which the test suite covers.
+    from reflex.workers.runner import run_decision, run_diagnosis, run_outcome
 
-        _workers = [
-            threading.Thread(target=run_diagnosis, args=(_stop_workers,), daemon=True, name="w-dx"),
-            threading.Thread(target=run_decision, args=(_stop_workers,), daemon=True, name="w-dc"),
-            threading.Thread(target=run_outcome, args=(_stop_workers,), daemon=True, name="w-oc"),
-        ]
-        for w in _workers:
-            w.start()
-        log.info("embedded_workers_started", count=len(_workers))
+    for _w in (
+        threading.Thread(target=run_diagnosis, args=(_stop_workers,), daemon=True, name="w-dx"),
+        threading.Thread(target=run_decision, args=(_stop_workers,), daemon=True, name="w-dc"),
+        threading.Thread(target=run_outcome, args=(_stop_workers,), daemon=True, name="w-oc"),
+    ):
+        _w.start()
+    log.info("embedded_workers_started", count=3)
 
     yield
     _stop_workers.set()
