@@ -63,28 +63,30 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # redeploy. Recompute the durable totals from Postgres so the Ops page shows
     # real numbers after a restart instead of zeros.
     try:
+        from sqlalchemy import text as _text
+
         from reflex.api.db import agent_sessionmaker as _cm
 
         _s = _cm()()
         try:
             _seed: dict[str, int] = {}
             _seed["episodes_created"] = _s.execute(
-                text("SELECT COUNT(*) FROM runtime.episodes")
+                _text("SELECT COUNT(*) FROM runtime.episodes")
             ).scalar() or 0
             _seed["dx_rule"] = _s.execute(
-                text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'rule'")
+                _text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'rule'")
             ).scalar() or 0
             _seed["dx_llm"] = _s.execute(
-                text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'llm'")
+                _text("SELECT COUNT(*) FROM runtime.diagnoses WHERE method = 'llm'")
             ).scalar() or 0
             _seed["dispatched"] = _s.execute(
-                text("SELECT COUNT(*) FROM runtime.actions WHERE dispatched_at IS NOT NULL")
+                _text("SELECT COUNT(*) FROM runtime.actions WHERE dispatched_at IS NOT NULL")
             ).scalar() or 0
             _seed["recovered"] = _s.execute(
-                text("SELECT COUNT(*) FROM runtime.outcomes WHERE outcome = 'recovered'")
+                _text("SELECT COUNT(*) FROM runtime.outcomes WHERE outcome = 'recovered'")
             ).scalar() or 0
             _shield = _s.execute(
-                text(
+                _text(
                     "SELECT event->>'type' AS t, COUNT(*) FROM runtime.action_ledger "
                     "WHERE event->>'type' IN ('ACTION_BLOCKED_AT_DISPATCH','APPROVAL_REQUESTED') "
                     "GROUP BY 1"
