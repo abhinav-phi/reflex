@@ -40,14 +40,26 @@ def main() -> None:
             text("SELECT seq, event FROM runtime.action_ledger ORDER BY seq")
         ).fetchall()
         prev = GENESIS_PREV
+        seqs: list[int] = []
+        prevs: list[str] = []
+        hashes: list[str] = []
         for seq, event in rows:
             d = compute_hash(int(seq), prev, dict(event))
-            conn.execute(
-                text("UPDATE runtime.action_ledger SET prev_hash = :p, hash = :h WHERE seq = :s"),
-                {"p": prev, "h": d, "s": int(seq)},
-            )
+            seqs.append(int(seq))
+            prevs.append(prev)
+            hashes.append(d)
             prev = d
-        print(f"restamped {len(rows)} rows; new head hash: {prev[:16]}...")
+        # Single-statement batched update — one round trip over the wire.
+        conn.execute(
+            text(
+                "UPDATE runtime.action_ledger t "
+                "SET prev_hash = v.p, hash = v.h "
+                "FROM unnest(CAST(:seqs AS int[]), CAST(:prevs AS text[]), CAST(:hashes AS text[])) "
+                "AS v(seq, p, h) WHERE t.seq = v.seq"
+            ),
+            {"seqs": seqs, "prevs": prevs, "hashes": hashes},
+        )
+        print(f"restamped {len(seqs)} rows; new head hash: {prev[:16]}...")
 
 
 if __name__ == "__main__":
