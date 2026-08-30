@@ -36,8 +36,11 @@ export default function Audit() {
 
   async function verify(): Promise<void> {
     setVerifying(true);
+    setLoadErr(null);
     try {
       setResult(await api<LedgerResp>("/api/ledger/verify"));
+    } catch (e) {
+      setLoadErr(e instanceof Error ? e.message : "verify failed — try again");
     } finally {
       setVerifying(false);
     }

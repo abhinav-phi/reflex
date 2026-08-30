@@ -101,7 +101,7 @@ export default function Landing() {
 
         {/* Features */}
         <section id="system" className="mt-32 scroll-mt-24">
-          <div className="mb-12"><h2 className="font-mono text-label-mono uppercase text-on-tertiary-container tracking-widest">ONE SYSTEM, SIX GUARANTEES</h2></div>
+          <div className="mb-12"><h2 className="font-mono text-label-mono uppercase text-on-tertiary-container tracking-widest">ONE SYSTEM, THREE GUARANTEES</h2></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
             <Link to="/dashboard" className="bg-surface-container-lowest rounded-[16px] p-8 warm-shadow flex flex-col gap-4 border border-outline-variant/30 hover:border-primary/40 transition-colors cursor-pointer">
               <span className="font-mono text-label-mono text-on-tertiary-container">01</span>

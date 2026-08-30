@@ -87,7 +87,7 @@ export default function Results() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="flex items-center gap-3 font-display text-headline-md text-primary">Evaluation results <SimulatedBadge /></h1>
-            <p className="mt-2 font-mono text-label-mono text-on-surface-variant">Pre-registered protocol · seeds {"{42, 1337, 2025}"} · bootstrap 95% CI (1,000 resamples)</p>
+            <p className="mt-2 font-mono text-label-mono text-on-surface-variant">Pre-registered protocol · seeds {`{${[...new Set(q.data?.runs.flatMap((r) => r.metrics.map((m) => m.seed).filter((x): x is number => x != null)))].sort((a, b) => a - b).join(", ") || "?..."}}`} · bootstrap 95% CI (1,000 resamples)</p>
           </div>
           <button onClick={() => void runEval()} disabled={running} className="rounded-full bg-primary-container text-on-primary px-6 py-3 text-xs font-mono font-semibold hover:bg-primary disabled:opacity-50">{running ? "starting…" : "▶ Run eval (protocol-tagged)"}</button>
         </header>

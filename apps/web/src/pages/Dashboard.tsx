@@ -95,7 +95,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-gutter">
           <div className="bg-surface-container-lowest rounded-xl p-6 warm-shadow relative overflow-hidden">
             <div className="w-6 h-1 bg-on-tertiary-container rounded-full mb-6" />
-            <p className="font-sans text-body-md text-on-surface-variant mb-2">Failed value today</p>
+            <p className="font-sans text-body-md text-on-surface-variant mb-2">Failed value (sim window)</p>
             <h2 className="font-display text-headline-md text-primary mb-4">{m ? formatINR(asPaise(m.failed_today_paise)) : "—"}</h2>
             <p className="font-mono text-label-mono text-on-surface-variant">{m ? `${m.episodes_open} open episodes` : metrics.isError ? "unavailable — auto-retrying" : "loading live metrics…"}</p>
           </div>

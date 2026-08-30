@@ -49,14 +49,40 @@ ABLATIONS: dict[str, PipelineConfig] = {
 }
 
 
+_PREREG_TAG_CACHE: bool | None = None
+
+
 def preregistration_tag_present() -> bool:
+    """Pre-registration proof: the protocol tag must exist in git history.
+
+    The deployed container has no git metadata, so fall back to checking the
+    tag on GitHub (public repo, unauthenticated tags endpoint — results are
+    cached for the process lifetime; a transient GitHub failure denies the
+    run, never accepts one).
+    """
+    global _PREREG_TAG_CACHE
+    if _PREREG_TAG_CACHE is not None:
+        return _PREREG_TAG_CACHE
     try:
         out = subprocess.run(
             ["git", "tag", "--list", PREREG_TAG], capture_output=True, text=True, timeout=10
         )
-        return bool(out.stdout.strip())
+        if out.stdout.strip():
+            _PREREG_TAG_CACHE = True
+            return True
     except Exception:
-        return False
+        pass
+    try:
+        import urllib.request
+
+        url = "https://api.github.com/repos/abhinav-phi/reflex/git/ref/tags/" + PREREG_TAG
+        req = urllib.request.Request(url, headers={"User-Agent": "reflex-eval"})
+        with urllib.request.urlopen(req, timeout=10) as res:
+            present = res.status == 200
+    except Exception:
+        present = False
+    _PREREG_TAG_CACHE = present
+    return present
 
 
 def _bootstrap_ratio_ci(

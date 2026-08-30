@@ -87,13 +87,17 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             _shield = _s.execute(
                 _text(
                     "SELECT event->>'type' AS t, COUNT(*) FROM runtime.action_ledger "
-                    "WHERE event->>'type' IN ('ACTION_BLOCKED_AT_DISPATCH','APPROVAL_REQUESTED') "
+                    "WHERE event->>'type' IN ('ACTION_CREATED','ACTION_BLOCKED_AT_DISPATCH','APPROVAL_REQUESTED') "
                     "GROUP BY 1"
                 )
             ).all()
             _by_type = {t: int(n) for t, n in _shield}
+            _seed["shield_pass"] = _by_type.get("ACTION_CREATED", 0)
             _seed["shield_block"] = _by_type.get("ACTION_BLOCKED_AT_DISPATCH", 0)
             _seed["shield_approval"] = _by_type.get("APPROVAL_REQUESTED", 0)
+            _seed["events_ingested"] = _s.execute(
+                _text("SELECT COUNT(*) FROM runtime.payment_events")
+            ).scalar() or 0
         finally:
             _s.close()
         for _k, _v in _seed.items():

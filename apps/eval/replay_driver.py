@@ -200,6 +200,29 @@ def _drive_and_cleanup(
             redis_client.set("reflex:replay:done", "1")
         except Exception:
             pass
+        # Drive ended: the sim window is over. Force-resolve every non-terminal
+        # episode (72h expiry + fail-closed approval timeouts) so nothing stays
+        # frozen in 'observing'/'scheduled' after the demo, and return the clock
+        # to wall time so sim time doesn't run away at ×100 forever.
+        try:
+            from datetime import timedelta as _td
+
+            from reflex.api.db import agent_sessionmaker as _esm
+            from reflex.core.clock import SimClock as _SimClock
+            from reflex.workers.outcomes import expire_due as _expire
+
+            _s = _esm()()
+            try:
+                _now = _SimClock(redis_client).now_sim() + _td(weeks=2)
+                for _ in range(6):  # expire_due caps work per call at 500 rows
+                    if _expire(_s, _now) == 0:
+                        break
+                _s.commit()
+            finally:
+                _s.close()
+            _SimClock(redis_client).reset()
+        except Exception as exc:
+            log.warning("drive_end_resolve_failed", error=str(exc)[:200])
 
 
 def run_webhook_storm(redis_client) -> dict[str, int]:  # type: ignore[no-untyped-def]
