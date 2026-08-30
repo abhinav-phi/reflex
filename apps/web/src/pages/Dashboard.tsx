@@ -180,6 +180,8 @@ export default function Dashboard() {
                       <td className="text-right">
                         {e.top_ev_paise != null ? (
                           <span className={`px-2 py-1 rounded font-bold ${e.top_ev_paise >= 0 ? "bg-primary text-secondary-container" : "text-on-surface-variant"}`}>{formatINR(asPaise(e.top_ev_paise))}</span>
+                        ) : armFilter === "b1" || armFilter === "b0" ? (
+                          <span className="text-on-surface-variant text-[10px] font-mono" title="baseline arms do not run the EV planner">baseline — no EV planner</span>
                         ) : (
                           <span className="text-on-surface-variant">—</span>
                         )}
@@ -188,7 +190,9 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table>
-              {episodes.data && episodes.data.items.length === 0 && <p className="py-12 text-center font-sans text-body-md text-on-surface-variant">No failed payments in window. Start a replay to see Reflex work.</p>}
+              {episodes.data && episodes.data.items.length === 0 && (armFilter === "b0"
+                ? <p className="py-12 text-center font-sans text-body-md text-on-surface-variant">B0 = do-nothing baseline — no agent actions to stream. Its outcomes are computed at eval time (see Results).</p>
+                : <p className="py-12 text-center font-sans text-body-md text-on-surface-variant">No failed payments in window. Start a replay to see Reflex work.</p>)}
             </div>
 
             {/* Mobile list */}
@@ -209,7 +213,9 @@ export default function Dashboard() {
                   </div>
                 </button>
               ))}
-              {episodes.data && episodes.data.items.length === 0 && <p className="py-8 text-center font-sans text-body-md text-on-surface-variant">No failed payments in window.</p>}
+              {episodes.data && episodes.data.items.length === 0 && (armFilter === "b0"
+                ? <p className="py-8 text-center font-sans text-body-md text-on-surface-variant">B0 = do-nothing baseline — outcomes computed at eval time.</p>
+                : <p className="py-8 text-center font-sans text-body-md text-on-surface-variant">No failed payments in window.</p>)}
               <button onClick={() => void episodes.refetch()} className="w-full py-3 mt-2 text-center font-mono text-label-mono text-primary hover:bg-surface-container-low transition-colors rounded-lg border border-outline-variant">View All Episodes</button>
             </div>
           </div>
