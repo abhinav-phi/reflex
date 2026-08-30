@@ -22,7 +22,7 @@ from sqlalchemy import text
 log = logging.getLogger("reflex.bootstrap")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_MIGRATIONS = ("0001_baseline", "0002_actions_llm_call_id")
+_MIGRATIONS = ("0001_baseline", "0002_actions_llm_call_id", "0003_pgcrypto")
 
 
 class _FakeOp:

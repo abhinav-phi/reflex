@@ -1,7 +1,11 @@
 """Hash-chained append-only ledger (PRD FR-010, Rules §4.3).
 
-hash = sha256(seq ‖ prev_hash ‖ canonical(event)) with canonical JSON:
-sorted keys, compact separators, UTF-8, ensure_ascii=False.
+hash = sha256(seq ‖ prev_hash ‖ event::text) — the event text is the
+jsonb-normalized form Postgres stores, computed server-side inside the INSERT
+itself (see LedgerWriter.append). Append and verify therefore hash the exact
+same bytes by construction: no value jsonb normalizes differently can produce
+a false TAMPER, and no concurrent appender can fork the chain (single
+statement, advisory-lock serialized).
 
 Ledger-first invariant: an action that cannot be ledgered must not be
 dispatched — callers append BEFORE dispatch and treat failure as blocking.
@@ -52,6 +56,8 @@ def canonical_event(event: dict[str, Any]) -> bytes:
 
 
 def compute_hash(seq: int, prev_hash: str, event: dict[str, Any]) -> str:
+    """Hash the in-memory canonical form — used by the in-process eval ledger
+    and as the verify fallback for rows that carry no stored text."""
     h = hashlib.sha256()
     h.update(str(seq).encode("ascii"))
     h.update(b"|")
@@ -61,13 +67,61 @@ def compute_hash(seq: int, prev_hash: str, event: dict[str, Any]) -> str:
     return h.hexdigest()
 
 
+def compute_hash_text(seq: int, prev_hash: str, event_text: str) -> str:
+    """Hash the jsonb-normalized event text (`event::text`).
+
+    Postgres jsonb normalizes values on storage, so the STORED text is the only
+    stable truth. Append computes the hash server-side over exactly this text
+    (one atomic INSERT — see LedgerWriter.append), and verify re-hashes the same
+    text read back. Both sides agree by construction.
+    """
+    h = hashlib.sha256()
+    h.update(str(seq).encode("ascii"))
+    h.update(b"|")
+    h.update(prev_hash.encode("ascii"))
+    h.update(b"|")
+    h.update(event_text.encode("utf-8"))
+    return h.hexdigest()
+
+
+# One atomic statement: seq (nextval), event (jsonb), and the hash — computed
+# server-side from the jsonb-normalized text with pgcrypto — are written in a
+# single INSERT. No follow-up UPDATE (the agent role's append-only grants have
+# no UPDATE on this table), and no window for a concurrent writer to fork the
+# chain (the advisory lock is held for the whole transaction).
+_APPEND_SQL = text(
+    """
+    WITH new_seq AS (
+        SELECT nextval('runtime.action_ledger_seq_seq') AS seq
+    ),
+    payload AS (
+        SELECT new_seq.seq AS seq,
+               CAST(:event AS jsonb) AS ev,
+               CAST(:prev_hash AS text) AS prev,
+               COALESCE(CAST(:at AS timestamptz), now()) AS cat
+        FROM new_seq
+    )
+    INSERT INTO runtime.action_ledger
+        (seq, episode_id, action_id, event, prev_hash, hash, created_at)
+    SELECT payload.seq,
+           CAST(:episode_id AS uuid),
+           CAST(:action_id AS uuid),
+           payload.ev,
+           payload.prev,
+           encode(digest(concat(payload.seq::text, '|', payload.prev, '|', (payload.ev)::text), 'sha256'), 'hex'),
+           payload.cat
+    FROM payload
+    RETURNING seq, hash, event::text AS event_text
+    """
+)
+
+
 class LedgerWriter:
     """Appends events to runtime.action_ledger.
 
-    Runtime mode (default): concurrency-safe via pg advisory lock + fresh head read.
-    Eval mode (`fast=True`): the writer is the only appender in its transaction;
-    caches the chain head in memory and skips the advisory lock (one INSERT per
-    event instead of three round-trips). Hash semantics identical.
+    Runtime mode (default): concurrency-safe via pg advisory lock + fresh head
+    read. Eval mode (`fast=True`): the writer is the only appender in its
+    transaction; caches the chain head in memory. Hash semantics identical.
     """
 
     def __init__(self, session: Session, *, fast: bool | None = None) -> None:
@@ -98,25 +152,20 @@ class LedgerWriter:
         if not self.fast:
             self.s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": LEDGER_LOCK_KEY})
         last_seq, prev_hash = self.head()
-        seq = last_seq + 1
         ev = dict(event)
         ev.setdefault("ts", (at or datetime.now(UTC)).isoformat())
-        digest = compute_hash(seq, prev_hash, ev)
-        self.s.execute(
-            text(
-                "INSERT INTO runtime.action_ledger "
-                "(episode_id, action_id, event, prev_hash, hash, created_at) "
-                "VALUES (:episode_id, :action_id, CAST(:event AS jsonb), :prev_hash, :hash, COALESCE(:at, now()))"
-            ),
+        row = self.s.execute(
+            _APPEND_SQL,
             {
-                "episode_id": episode_id,
-                "action_id": action_id,
+                "episode_id": str(episode_id),
+                "action_id": str(action_id) if action_id else None,
                 "event": json.dumps(ev, ensure_ascii=False),
                 "prev_hash": prev_hash,
-                "hash": digest,
                 "at": at,
             },
-        )
+        ).mappings().one()
+        seq = int(row["seq"])
+        digest = str(row["hash"])
         self._seq = seq
         self._prev = digest
         return seq, digest
@@ -163,6 +212,10 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
 
     Seq numbers may have gaps (BIGSERIAL skips values on rolled-back
     transactions) — the integrity guarantee is the hash chain, not contiguity.
+
+    Rows fetched from the database carry `event_text` (the jsonb-normalized
+    event::text) and are hashed with compute_hash_text. In-memory rows (eval
+    harness) carry only the dict and keep the canonical-dict fallback.
     """
     prev_seq = 0
     prev = GENESIS_PREV
@@ -171,7 +224,13 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
         event = row["event"]  # type: ignore[index]
         prev_hash = str(row["prev_hash"])  # type: ignore[index]
         digest = str(row["hash"])  # type: ignore[index]
-        if seq <= prev_seq or prev_hash != prev or compute_hash(seq, prev, event) != digest:
+        event_text = row.get("event_text") if hasattr(row, "get") else None
+        expected = (
+            compute_hash_text(seq, prev, str(event_text))
+            if event_text is not None
+            else compute_hash(seq, prev, event)
+        )
+        if seq <= prev_seq or prev_hash != prev or expected != digest:
             return False, seq, len(rows)
         prev_seq = seq
         prev = digest
@@ -181,7 +240,7 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
 def verify_db(session: Session) -> tuple[bool, int | None, int]:
     stmt = session.execute(
         text(
-            "SELECT seq, event, prev_hash, hash FROM runtime.action_ledger ORDER BY seq"
+            "SELECT seq, event::text, prev_hash, hash FROM runtime.action_ledger ORDER BY seq"
         )
     )
     valid = True
@@ -189,12 +248,12 @@ def verify_db(session: Session) -> tuple[bool, int | None, int]:
     checked = 0
     prev_seq = 0
     prev = GENESIS_PREV
-    for seq, event, prev_hash, digest in stmt:
+    for seq, event_text, prev_hash, digest in stmt:
         checked += 1
         ok = (
             int(seq) > prev_seq
             and prev_hash == prev
-            and compute_hash(int(seq), prev, dict(event)) == digest
+            and compute_hash_text(int(seq), prev, str(event_text)) == digest
         )
         if not ok and valid:
             valid = False

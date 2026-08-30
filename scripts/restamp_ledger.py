@@ -33,18 +33,18 @@ def main() -> None:
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     eng = create_engine(url, pool_pre_ping=True)
 
-    from reflex.ledger.chain import compute_hash
+    from reflex.ledger.chain import compute_hash_text
 
     with eng.begin() as conn:
         rows = conn.execute(
-            text("SELECT seq, event FROM runtime.action_ledger ORDER BY seq")
+            text("SELECT seq, event::text AS event_text FROM runtime.action_ledger ORDER BY seq")
         ).fetchall()
         prev = GENESIS_PREV
         seqs: list[int] = []
         prevs: list[str] = []
         hashes: list[str] = []
-        for seq, event in rows:
-            d = compute_hash(int(seq), prev, dict(event))
+        for seq, event_text in rows:
+            d = compute_hash_text(int(seq), prev, str(event_text))
             seqs.append(int(seq))
             prevs.append(prev)
             hashes.append(d)
@@ -54,7 +54,7 @@ def main() -> None:
             text(
                 "UPDATE runtime.action_ledger t "
                 "SET prev_hash = v.p, hash = v.h "
-                "FROM unnest(CAST(:seqs AS int[]), CAST(:prevs AS text[]), CAST(:hashes AS text[])) "
+                "FROM unnest(CAST(:seqs AS bigint[]), CAST(:prevs AS text[]), CAST(:hashes AS text[])) "
                 "AS v(seq, p, h) WHERE t.seq = v.seq"
             ),
             {"seqs": seqs, "prevs": prevs, "hashes": hashes},
