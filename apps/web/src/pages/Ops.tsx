@@ -201,7 +201,7 @@ export default function Ops() {
 
           <Card title="Counters">
             <dl className="grid grid-cols-2 gap-x-6 md:gap-x-24 gap-y-2 md:gap-y-4 font-mono text-xs">
-              {Object.entries(counters).map(([k, v]) => (
+              {Object.entries(counters).filter(([k]) => k !== "duplicates_collapsed").map(([k, v]) => (
                 <div key={k} className="flex justify-between border-b border-outline-variant/60 py-2">
                   <dt className="text-on-surface-variant">{k}</dt>
                   <dd>{v}</dd>

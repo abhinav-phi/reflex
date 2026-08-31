@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -96,7 +97,12 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 )
             ).all()
             _by_type = {t: int(n) for t, n in _shield}
-            _seed["shield_pass"] = _by_type.get("ACTION_CREATED", 0)
+            _seed["shield_pass"] = _s.execute(
+                _text(
+                    "SELECT COUNT(DISTINCT episode_id) FROM runtime.action_ledger "
+                    "WHERE event->>'type' = 'ACTION_CREATED'"
+                )
+            ).scalar() or 0
             _seed["shield_block"] = _by_type.get("ACTION_BLOCKED_AT_DISPATCH", 0)
             _seed["shield_approval"] = _by_type.get("APPROVAL_REQUESTED", 0)
             _seed["events_ingested"] = _s.execute(
@@ -267,7 +273,16 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     log.info("embedded_workers_stopped")
 
 
-app = FastAPI(title="Reflex", version="1.0.0", lifespan=lifespan)
+# Production keeps the API surface small: swagger/openapi only when DEBUG=1.
+_DEBUG_PROD = os.environ.get("DEBUG") == "1"
+app = FastAPI(
+    title="Reflex",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _DEBUG_PROD else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if _DEBUG_PROD else None,
+)
 
 # Security headers middleware (must be first to apply to all responses)
 @app.middleware("http")
