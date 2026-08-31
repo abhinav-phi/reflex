@@ -237,6 +237,85 @@ def verify_rows(rows: Sequence[dict[str, Any] | ActionLedgerRow]) -> tuple[bool,
     return True, None, len(rows)
 
 
+def verify_episode_slice(
+    session: Session, episode_id: str
+) -> tuple[bool, int | None, int, list[dict[str, Any]]]:
+    """Verify one episode's trail against the GLOBAL chain, row by row.
+
+    Under the replay driver, episodes' rows interleave in seq order, so a
+    slice cannot be verified by walking it with a single seeded head — each
+    row must link to its OWN global predecessor. For every row this checks:
+
+    1. linkage: `prev_hash` equals the hash of the globally preceding row
+       (genesis for the chain's first row) — detects deletions and tampered
+       links anywhere before the row, even outside the slice;
+    2. self-consistency: `hash` equals sha256 over (seq | prev_hash | stored
+       event text) — detects event or hash tampering.
+
+    Returns (valid, first_bad_seq, checked, rows); rows carry the fields the
+    ledger API renders plus `global_prev_hash`/`global_prev_seq` used by the
+    checks. An unknown episode yields an empty, valid trail.
+    """
+    rows = session.execute(
+        text(
+            """
+            SELECT l.seq, l.episode_id::text AS episode_id,
+                   l.action_id::text AS action_id, l.event,
+                   l.event::text AS event_text, l.prev_hash, l.hash,
+                   l.created_at, g.hash AS global_prev_hash,
+                   g.seq AS global_prev_seq
+            FROM runtime.action_ledger l
+            LEFT JOIN LATERAL (
+                SELECT g.hash, g.seq FROM runtime.action_ledger g
+                WHERE g.seq < l.seq ORDER BY g.seq DESC LIMIT 1
+            ) g ON true
+            WHERE l.episode_id = CAST(:e AS uuid)
+            ORDER BY l.seq
+            """
+        ),
+        {"e": str(episode_id)},
+    ).mappings().all()
+    if not rows:
+        return True, None, 0, []
+    valid, first_bad, checked = _check_slice_rows([dict(r) for r in rows])
+    return valid, first_bad, checked, [dict(r) for r in rows]
+
+
+def _check_slice_rows(
+    rows: list[dict[str, Any]],
+) -> tuple[bool, int | None, int]:
+    """Pure checks for `verify_episode_slice`: each row must link to its own
+    global predecessor (genesis for the chain's first row) and carry a hash
+    consistent with its own stored prev_hash and event text."""
+    valid = True
+    first_bad: int | None = None
+    checked = 0
+    prev_seq = 0
+    for r in rows:
+        seq = int(r["seq"])
+        stored_prev = str(r["prev_hash"])
+        digest = str(r["hash"])
+        expected_link = GENESIS_PREV if r["global_prev_hash"] is None else str(r["global_prev_hash"])
+        event_text = r.get("event_text")
+        expected_hash = (
+            compute_hash_text(seq, stored_prev, str(event_text))
+            if event_text is not None
+            else compute_hash(seq, stored_prev, r["event"])
+        )
+        ok = (
+            seq > prev_seq
+            and stored_prev == expected_link
+            and expected_hash == digest
+        )
+        if not ok and valid:
+            valid = False
+            first_bad = seq
+        if ok:
+            prev_seq = seq
+        checked += 1
+    return valid, first_bad, checked
+
+
 def verify_db(session: Session) -> tuple[bool, int | None, int]:
     stmt = session.execute(
         text(

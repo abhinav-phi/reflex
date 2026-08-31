@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from reflex.api.params import require_uuid
 from reflex.api.security import require_role
 from reflex.core.enums import Role
-from sqlalchemy import text
 
 router = APIRouter()
 
@@ -22,22 +21,16 @@ def episode_ledger(
     request.app.state.rate.check("episodes_list", user["user_id"])
     episode_id = require_uuid(episode_id, "episode_id")
     from reflex.api.db import agent_sessionmaker
+    from reflex.ledger.chain import verify_episode_slice
 
     s = agent_sessionmaker()()
     try:
-        rows = s.execute(
-            text(
-                "SELECT seq, episode_id::text AS episode_id, action_id::text AS action_id, "
-                "event, event::text AS event_text, prev_hash, hash, created_at FROM runtime.action_ledger "
-                "WHERE episode_id = CAST(:e AS uuid) ORDER BY seq"
-            ),
-            {"e": episode_id},
-        ).mappings().all()
-        valid, first_bad, checked = _verify_range(s, [dict(r) for r in rows])
+        valid, first_bad, checked, rows = verify_episode_slice(s, episode_id)
         if not valid:
             raise HTTPException(status_code=409, detail="chain break detected in this episode's trail")
         return {
             "valid": valid,
+            "checked": checked,
             "events": [
                 {
                     "seq": r["seq"],
@@ -53,13 +46,6 @@ def episode_ledger(
         }
     finally:
         s.close()
-
-
-def _verify_range(session, rows: list[dict]) -> tuple[bool, int | None, int]:  # type: ignore[no-untyped-def]
-    """Verify a contiguous slice; also confirm linkage to the global head."""
-    from reflex.ledger.chain import verify_rows
-
-    return verify_rows(rows)
 
 
 @router.get("/ledger/verify")
