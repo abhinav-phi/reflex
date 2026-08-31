@@ -68,5 +68,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - Initial build: FastAPI ingestion/diagnosis/EV/guardrail/dispatch pipeline, React command
-  center, hash-chained ledger, React command center design system, full design
+  center, hash-chained ledger, design system, full design
   documentation (`docs/1–8`), test suite (unit/api/integration/security/load).
