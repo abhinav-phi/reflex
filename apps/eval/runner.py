@@ -80,6 +80,21 @@ def preregistration_tag_present() -> bool:
             return True
     except Exception:
         pass
+    # Fallback 1: git ls-remote over smart-HTTP — no REST quota, works without
+    # a local checkout, and is what every CI does constantly (reliable on
+    # shared egress IPs where api.github.com's per-IP quota is exhausted).
+    try:
+        out = subprocess.run(
+            ["git", "ls-remote", "--tags", "https://github.com/abhinav-phi/reflex.git"],
+            capture_output=True, text=True, timeout=20,
+        )
+        if PREREG_TAG in out.stdout:
+            _PREREG_TAG_CACHE = True
+            _PREREG_TAG_CACHE_AT = _time.time()
+            return True
+    except Exception:
+        pass
+    # Fallback 2: REST API (subject to shared-IP quotas — last resort only).
     try:
         import urllib.request
 

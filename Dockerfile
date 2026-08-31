@@ -2,6 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+# git: the eval pre-registration check falls back to `git ls-remote --tags`
+# against GitHub when the container has no checkout ( Railway single-image deploy )
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml README.md ./
 COPY reflex ./reflex
