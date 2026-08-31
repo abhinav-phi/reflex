@@ -38,15 +38,18 @@ ends.
    `SELECT COUNT(*) FROM runtime.action_ledger` → **≥ 204061** (grows with new
    appends); `SELECT last_value FROM runtime.action_ledger_seq_seq` must be
    ≥ max(seq) — else appends would collide.
-3. **Known, pre-existing ledger property (do NOT "fix" casually):** rows with
-   `seq ≥ 32166` from the eval/replay bulk loaders were appended concurrently,
-   so ~12.7k rows carry hashes computed against a stale chain head — the
-   full-table `GET /api/ledger/verify` reports `first_bad_seq: 32166` (it did
-   on the source database too; the migration preserved it byte-for-byte).
-   Per-episode trails of affected episodes return 409. Re-running
-   `scripts/restamp_ledger.py` against the Aiven URI re-derives the chain from
-   stored events (the project's sanctioned repair) — but that changes stamps
-   relative to the published eval artifact, so decide deliberately.
+3. **Historical ledger rows — restamped 2026-09-01, chain now fully valid.**
+   The eval/replay bulk loaders had raced on the chain head, leaving ~12.7k
+   rows (seq ≥ 32166) whose hashes referenced a stale predecessor — full-table
+   `ledger/verify` reported a break and intersecting episode trails returned
+   409. The chain was re-derived from stored events (the sanctioned
+   `restamp_ledger.py` math, executed in batches) and the trail verifier was
+   fixed to check each row against its own global predecessor
+   (`verify_episode_slice`) — `ledger/verify` now returns
+   `valid:true, checked:204061` and every episode trail verifies. Pre-restamp
+   and post-fix dumps are retained (local + Aiven PITR) as the audit trail.
+   Note: any ledger-hash values exported **before** 2026-09-01 no longer match
+   the database — re-export if a hash-level comparison is needed.
 4. **Recent appends are atomic**: since migration `0003`, ledger hashes are
    computed server-side (pgcrypto) inside the single INSERT, so new rows chain
    correctly; `pgcrypto` is present on the Aiven instance.
