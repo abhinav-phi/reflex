@@ -50,6 +50,8 @@ ABLATIONS: dict[str, PipelineConfig] = {
 
 
 _PREREG_TAG_CACHE: bool | None = None
+_PREREG_TAG_CACHE_AT: float = 0.0
+_TAG_NEGATIVE_TTL_SECS = 60
 
 
 def preregistration_tag_present() -> bool:
@@ -60,8 +62,14 @@ def preregistration_tag_present() -> bool:
     cached for the process lifetime; a transient GitHub failure denies the
     run, never accepts one).
     """
-    global _PREREG_TAG_CACHE
-    if _PREREG_TAG_CACHE is not None:
+    global _PREREG_TAG_CACHE, _PREREG_TAG_CACHE_AT
+    # A confirmed-present result is cached for the process lifetime; a negative
+    # result is cached only briefly — a transient GitHub failure must not stick
+    # as "tag missing" forever (that would block Run eval until the next
+    # container restart).
+    import time as _time
+
+    if _PREREG_TAG_CACHE is not None and _time.time() - _PREREG_TAG_CACHE_AT < _TAG_NEGATIVE_TTL_SECS:
         return _PREREG_TAG_CACHE
     try:
         out = subprocess.run(
@@ -82,6 +90,7 @@ def preregistration_tag_present() -> bool:
     except Exception:
         present = False
     _PREREG_TAG_CACHE = present
+    _PREREG_TAG_CACHE_AT = _time.time()
     return present
 
 
