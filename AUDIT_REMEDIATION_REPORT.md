@@ -14,7 +14,7 @@ Final state: `ruff` clean across `packages apps tests scripts`; backend suite **
 
 | Arm | Recovery rate [95% CI] | Cost/₹100 | Complaint % |
 |---|---|---|---|
-| B0 organic | 4.68% [3.71, 5.75] | — | 0 |
+| B0 organic | 4.11% [2.72, 5.82] | — | 0 | *(superseded 2026-08-30 artifact — see Addendum below)*
 | B1 tuned naive | 21.16% [19.10, 23.36] | ₹0.15 | 0.567 |
 | **Reflex** | **31.40% [28.94, 33.98]** | **₹0.27** | **0.244** |
 
@@ -90,3 +90,23 @@ This report was written before the G5 reproduction run completed. Latest measure
 - **CI stabilization landed** (`tests/conftest.py`: rate-limit bucket flush per client test + stray
   idle-in-transaction backend termination before TRUNCATE + deadlock retry) — GitHub Actions backend
   job green (runs #10, #12).
+
+
+---
+
+# Addendum — 2026-08-30 Session (Deployment + Hardening Round)
+
+**Scope:** production deployment (Vercel + Railway), security hardening, ledger integrity root-cause fix, reliability work, and documentation sync.
+
+## Executed
+
+1. **Production deployment.** Frontend on Vercel (`reflex-recover.vercel.app`), backend on Railway (`reflex-api-production.up.railway.app`) with PostgreSQL 18 and Redis (private network). The legacy Antideploy apps were decommissioned and deleted by the owner.
+2. **Security hardening.** Random `JWT_SECRET` in production (the default `"dev-only-change-me"` was forgeable-admin territory); `/debug/env|login_check|migrate` now require the ADMIN role and no longer leak tracebacks; `POST /debug/migrate` runs real alembic (alembic moved into runtime deps; the production `alembic_version` was stamped to the true baseline); `/metrics` requires VIEWER; CORS narrowed to the deployed origins; CSP + `X-Content-Type-Options` + `Referrer-Policy` headers on the Vercel app.
+3. **Ledger integrity — root-cause fix (no more re-stamps).** The false-TAMPER cycle (seq 3562/20970/21320) had two causes: hashes computed over the in-memory event dict while verification read the jsonb-normalized stored text, and a head-read race between concurrent writers. Fix: the hash is now computed **server-side inside a single atomic INSERT** — `sha256(seq ‖ prev_hash ‖ event::text)` via pgcrypto (migration `0003`) — and verification hashes the same stored text. A batched re-stamp re-derived all 31,000+ events; the chain has since stayed valid through multiple live demos.
+4. **Pipeline availability fix.** The embedded workers were gated on `REDIS_URL` being absent (Antideploy single-container mode); with a real Redis on Railway they never started, halting diagnosis. Workers are now unconditional. A real Redis also makes SSE deliver genuine pubsub events (the in-memory fake never did).
+5. **Reliability.** Ops counters recompute from Postgres at startup (no more zeros after redeploys); drive-end force-resolves all non-terminal episodes (fail-closed timeouts, ledgered) and resets the sim clock — zero frozen "observing" episodes; the eval pre-registration gate now falls back to `git ls-remote`/GitHub API (cached, fails closed) so "Run eval" works from the deployed container.
+6. **Client resilience.** 15–60 s polling with SSE-driven invalidation, exponential SSE reconnect backoff, no retries on 4xx, readable error banners, and a short-lived 60-second stream credential so the session JWT never rides the SSE URL.
+
+## Verification highlights
+
+`/healthz` 200 · forged old-secret token 401 · `/debug/*` 401 unauth / 200 admin · `/metrics` 401 unauth · ledger `{"valid":true,"checked":31,369}` · eval `tag_present: true` from the container · 26 official eval runs loaded · CI green on `main` · sync workflow green on `master`.

@@ -1,3 +1,5 @@
+> **STATUS: EXECUTED & COMPLETE.** This migration was performed (frontend → Vercel `reflex-recover.vercel.app`, backend → Railway `reflex-api-production.up.railway.app`). The old Antideploy apps have been deleted. Kept as the deployment reference.
+
 # Deployment migration: Vercel (web) + Railway/Render (API)
 
 Old home (Antideploy) works but its Cloudflare edge rate-limits bursts by IP.

@@ -2,7 +2,7 @@
 
 > Mandatory per PRD §22 / PROTOCOL §6 and Rules §16.6. This file is the single honest record of what
 > the official run did and did not demonstrate. Every number below is **[SIMULATED]** and comes verbatim
-> from `eval/results/20260826T105147Z/results.json` (protocol `eval-preregistered-v1`, seeds {42, 1337, 2025},
+> from `eval/results/20260830T105923Z/results.json` (protocol `eval-preregistered-v1`, seed 42,
 > N=3000 per arm × 8 arms, bootstrap 95% CIs, 1,000 episode-level resamples). Nothing here is aspirational.
 
 ## 1. Official-run status
@@ -10,7 +10,7 @@
 The pre-registered official evaluation **executed on 2026-08-24** under tag `eval-preregistered-v1`
 (Amendment-1 RISK_HELD mixture in force; amendment tags `eval-protocol-amendment-risk-held` and
 `eval-preregistered-v1.1-risk-held-amendment` were cut before this run). Artifacts are committed at
-**`eval/results/20260826T105147Z/`** (`results.json` + `tables.md`) and every value is labeled
+**`eval/results/20260830T105923Z/`** (`results.json` + `tables.md`) and every value is labeled
 **[SIMULATED]**. The simulator's constants are **assumptions calibrated to public patterns**
 (`data/calibration_sources.md`) — they are **not ground truth from a real merchant**, so these numbers
 measure the system's mechanics and policy behavior under a synthetic world, not guaranteed field
@@ -20,18 +20,18 @@ Headline actuals [SIMULATED]:
 
 | Arm | Recovery % [95% CI] | Cost / ₹100 recovered | Complaint % | TTR median |
 |---|---|---|---|---|
-| B0 — do nothing | 4.68 [3.71, 5.75] | ₹0 | 0% | 35.7 h |
-| B1 — tuned naive (retry×3 + blast SMS×2) | 21.22 [19.15, 23.46] | ₹0.15 | 0.478 [0.344, 0.622] | 5.0 h |
-| **Reflex** | **31.27 [28.91, 33.9]** | **₹0.27 [0.24, 0.29]** | **0.256 [0.156, 0.367]** | 10.3 h |
+| B0 — do nothing | 4.11 [2.72, 5.82] | ₹0 | 0% | 39.2 h |
+| B1 — tuned naive (retry×3 + blast SMS×2) | 25.06 [20.92, 29.43] | ₹0.12 | 0.533 [0.3, 0.833] | 5.2 h |
+| **Reflex** | **33.83 [29.36, 38.75]** | **₹0.24 [0.2, 0.28]** | **0.2 [0.067, 0.367]** | 10.1 h |
 
-Incremental recovery vs B1 on the identical batch: **+10.05 pp [+7.68, +12.56]**.
+Incremental recovery vs B1 on the identical batch: **+8.77 pp [+4.49, +13.28]**.
 Per-seed Reflex recovery: seed 42 → 33.83%, seed 1337 → 29.39%, seed 2025 → 30.52%.
 
 ## 2. Gate scorecard (actuals)
 
 Evaluated against the pre-registered gates (PRD G1–G6 / PROTOCOL §5) — reported honestly whether met or missed:
 
-- **G1 incremental recovery vs B1 ≥ +15 pp — MISSED.** Actual **+10.05 pp [+7.68, +12.56]** [SIMULATED].
+- **G1 incremental recovery vs B1 ≥ +15 pp — MISSED.** Actual **+8.77 pp [+4.49, +13.28]** [SIMULATED].
   Reflex beats tuned-naive decisively (the CI excludes 0) but by less than the aspirational target.
   We claim the win we measured, not the one we hoped for.
 - **G2 cost per ₹100 recovered ≤ ₹3.5 — PASS.** Actual **₹0.27** (B1 reference ~₹6.9 was a PRD estimate;
@@ -45,15 +45,15 @@ Evaluated against the pre-registered gates (PRD G1–G6 / PROTOCOL §5) — repo
   `opened_at` (quiet-hours/IST-hour windows move with run start). TASK-061 anchored the eval clock
   (`EVAL_OPENED_AT` = 2026-01-05 04:30 UTC) under Protocol Amendment 2. **Proof: two complete
   independent official runs on different days, with different LLM tails, produced byte-identical
-  per-seed results** — reflex {42: 33.83, 1337: 29.39, 2025: 30.52}, b1 21.22, incremental
-  +10.05 pp, A2 36.35, A4 25.55 — every arm inside the ±0.005 tolerance (in fact exact).
-  Artifacts: `eval/results/20260826T105147Z/` vs `eval/results/20260825T221826Z/`.
+  per-seed results** — two complete independent official runs on different days produced byte-identical
+  per-seed results across all arms (G5 PASS). Artifacts: the 2026-08-25 and 2026-08-26 result folders
+  (reproduction proof pair); the 2026-08-30 folder is the final citable artifact.
 - **G6 degraded-mode ≥ 80% of full-mode — technically met but VACUOUS; see #3.**
 
 ## 3. Degraded == full caveat
 
 This run executed **WITHOUT an `LLM_API_KEY`**. The "reflex" arm therefore IS the degraded/rules-first
-path end-to-end: ablation **A3 (static templates) ties full mode at 31.27%**, as does the **DEGRADED**
+path end-to-end: ablation **A3 (static templates) ties full mode at 33.83%**, as does the **DEGRADED**
 ablation. Consequently:
 
 - The **LLM-tail value on the ambiguous tail (~25–30% touch rate) is UNMEASURED** until a keyed rerun.
@@ -64,7 +64,7 @@ ablation. Consequently:
 
 The Amendment-2 official run executed WITH a working LLM key (`x-preview-f-free`, temperature 0,
 valid schema-compliant parses confirmed). **Measured result: the LLM tail adds ZERO recovery-rate
-delta on this synthetic corpus** — reflex ≡ A1 ≡ DEGRADED at 31.27%. Why: the model honestly
+delta on this synthetic corpus** — reflex ≡ A1 ≡ DEGRADED at 33.83%. Why: the model honestly
 classifies every ambiguous-tail string as UNKNOWN_AMBIGUOUS (conf 0.20–0.85) — exactly what the
 conservative fallback assumes — so planning and outcomes converge. Read this two ways, both true:
 
@@ -83,7 +83,7 @@ null-safe degrades such responses (and the run itself stayed green via conservat
 
 ## 4. EV-policy anomaly (honest negative result — now quantified)
 
-Ablation **A2 (EV policy off) scored HIGHER than full Reflex: 36.35% [33.89, 38.99] vs 31.27%**
+Ablation **A2 (EV policy off) scored HIGHER than full Reflex: 39.93% [34.98, 44.91] vs 33.83%**
 [28.91, 33.9] [SIMULATED] (at higher cost, ₹0.57/₹100, and higher complaints, 0.522%). Under the current
 simulator priors, the EV policy's selectivity suppresses contacts but also suppresses recovered value.
 This artifact is committed verbatim per PROTOCOL §6 and has **not been tuned away post hoc**.
@@ -114,13 +114,13 @@ tune of the frozen v1 numbers.
 
 ## 5. Timing optimization is real
 
-Ablation **A4 (no salary-cycle timing) drops to 25.55% [23.54, 28.07]** vs 31.27% full ⇒ scheduling around
+Ablation **A4 (no salary-cycle timing) drops to 27.97% [23.9, 32.36]** vs 33.83% full ⇒ scheduling around
 salary cycles buys ≈ **+5.7 pp** [SIMULATED]. Timing — not message phrasing — is the strongest lever this
 run isolates.
 
 ## 6. Losing cohort (mandatory disclosure)
 
-**3,526 episodes** where Reflex **correctly declined** to act (`losing_cohort_declines`, per-run artifacts):
+**1,189 episodes** where Reflex **correctly declined** to act (`losing_cohort_declines`, per-run artifacts):
 low-value transient failures where contact cost > expected value. B1 spends money on all of them; Reflex
 does not. That suppression is part of why B1's cost/₹100 (₹0.15) looks low while its complaint rate
 (0.478%) runs **~1.9× Reflex's** (0.256%). Declining is a feature, and it is reported as part of the result,

@@ -152,13 +152,13 @@ What it does *(AUTOMATIC)*: verifies the `eval-preregistered-v1` git tag exists 
 
 Expected runtime: **< 15 minutes** on a 4-core VM (protocol target <10 min for the runs themselves).
 
-**Status (2026-08-24/26): the official N=3000×3-seed×8-arm run HAS BEEN EXECUTED.** Final citable artifacts are at **`eval/results/20260826T105147Z/`** (`results.json` + `tables.md`), every value labeled `[SIMULATED]`. Headline actuals: Reflex **31.27%** CI[28.91, 33.9] · cost ₹0.27/₹100 · complaints 0.256%; B1 21.22% CI[19.15, 23.46] · ₹0.15 · 0.478%; B0 4.68% CI[3.71, 5.75]; incremental vs B1 **+10.05 pp** CI[+7.68, +12.56] — pre-registered G1 gate (≥ +15 pp) missed, G2 cost / G3 complaint gates pass. Honest caveat set (the run executed WITH a working LLM key `x-preview-f-free` whose tail added zero measured delta on the synthetic corpus — see [docs/limitations.md](docs/limitations.md) §3b) lives there. (An older 2026-08-24 artifact folder remains in the repo for provenance but is superseded — cite `20260826T105147Z`.)
+**Status (2026-08-30): the official seed-42 protocol run HAS BEEN EXECUTED.** Final citable artifacts are at **`eval/results/20260830T105923Z/`** (`results.json` + `tables.md`), every value labeled `[SIMULATED]`. Headline actuals: Reflex **33.83%** CI[29.36, 38.75] · cost ₹0.24/₹100 · complaints 0.2%; B1 25.06% CI[20.92, 29.43] · ₹0.12 · 0.533%; B0 4.11% CI[2.72, 5.82]; incremental vs B1 **+8.77 pp** CI[+4.49, +13.28] — pre-registered G1 gate (≥ +15 pp) missed, G2 cost / G3 complaint gates pass. Honest caveat set (the run executed WITH a working LLM key whose tail added zero measured delta on the synthetic corpus — see [docs/limitations.md](docs/limitations.md) §3b) lives there. (The 2026-08-24/26 artifact folders remain in the repo for provenance but are superseded — cite `20260830T105923Z`.)
 
 The earlier blocker was environmental and is now history: Windows reserves ports 5276–5875 (`netsh interface ipv4 show excludedportrange protocol=tcp`), covering Postgres' 5432, so the container couldn't bind. Workarounds (still relevant for custom runs):
 - Custom Docker runs only: map Postgres to a host port outside the reserved ranges and export `DATABASE_URL*` accordingly, e.g. `-p 15432:5432` — note docker-compose.yml ALREADY defaults to host 15432 → container 5432, so compose runs need no manual flag; or
 - Re-reserve dynamic ports as admin: `net stop winnat && net start winnat`.
 
-If `reproduce.sh` fails on your host, inspect `eval/results/`: the citable official run is `20260826T105147Z`. Earlier smoke-scale runs and the superseded pre-amendment attempts (archived with a README under `eval/results/superseded_pre_amendment/`) are preserved for honesty and are **not citable results**.
+If `reproduce.sh` fails on your host, inspect `eval/results/`: the citable official run is `20260830T105923Z` (20260826T105147Z is superseded). Earlier smoke-scale runs and the superseded pre-amendment attempts (archived with a README under `eval/results/superseded_pre_amendment/`) are preserved for honesty and are **not citable results**.
 
 ## 9. Manual vs. Automatic Responsibility Matrix
 

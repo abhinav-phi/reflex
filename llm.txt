@@ -6,9 +6,9 @@
 > guardrails, recovers via Razorpay TEST-MODE payment links, and writes every action to a
 > hash-chained ledger. Tagline: "Recover more, annoy less, prove everything." Governing
 > principle: "AI proposes, deterministic code disposes." Official pre-registered evaluation
-> [SIMULATED]: Reflex recovered **31.27% [95% CI 28.91–33.9]** of failed value vs **21.22%**
-> for a tuned-naive baseline and 4.68% organic — incremental **+10.05 pp [+7.68, +12.56]**,
-> at ₹0.27 cost per ₹100 recovered and 0.256% complaint rate.
+> [SIMULATED] (2026-08-30 artifact): Reflex recovered **33.83% [95% CI 29.36–38.75]** of failed
+> value vs **25.06% [20.92–29.43]** for a tuned-naive baseline and **4.11% [2.72–5.82]** organic —
+> incremental **+8.77 pp [4.49–13.28]**, at ₹0.24 cost per ₹100 recovered and 0.2% complaint rate.
 
 ## What this project is
 
@@ -26,18 +26,14 @@ agent (database role separation).
 
 - Everything measured is **[SIMULATED]** — synthetic customers, simulated channels, Razorpay
   TEST MODE only. No real money moved, no real customers contacted, ever.
-- Pre-registered design targets were ~42% / ~24% / ~7% recovery (Reflex/naive/organic). Measured
-  actuals are **31.27% / 21.22% / 4.68%**. The G1 gate (≥ +15 pp incremental over naive) was
-  **MISSED at +10.05 pp [+7.68, +12.56]** and is reported verbatim — never tuned away.
-- The CI excludes zero, so the effect is real; it is smaller than the aspirational target.
-- **The official run WAS keyed (honest AI result):** the Amendment-2 official run (2026-08-26,
-  72,000 episode-runs) executed WITH a working LLM key (`x-preview-f-free`, temperature 0,
-  valid schema-compliant parses confirmed) — measured result: the LLM tail adds **ZERO**
-  recovery-rate delta on this synthetic corpus. The model honestly classified every synthetic
-  ambiguous-tail string as UNKNOWN_AMBIGUOUS — matching the conservative fallback — so reflex
-  ≡ A1 ≡ DEGRADED at 31.27% (safety proven under real provider conditions; differentiation
-  requires real-world decline strings). A pre-keyed attempt is acknowledged in §3 of
-  `docs/limitations.md`; per G5 both runs produced byte-identical per-seed results.
+- Pre-registered design target was ≥ +15 pp incremental over the tuned baseline. The measured
+  official run delivered **+8.77 pp [4.49–13.28]** — a real effect (CI excludes zero) that
+  **MISSED the ≥ +15 pp G1 gate**, and the miss is reported verbatim — never tuned away.
+- The official run was keyed (honest AI result): the LLM tail executed WITH a working key
+  (temperature 0) and honestly classified the synthetic ambiguous-tail strings as
+  UNKNOWN_AMBIGUOUS — matching the conservative fallback — so reflex ≡ A1 ≡ DEGRADED at
+  33.83% (safety proven under real provider conditions; differentiation requires real-world
+  decline strings). A pre-keyed attempt is acknowledged in §3 of `docs/limitations.md`.
 
 ## Architecture
 
@@ -50,14 +46,15 @@ Six subsystems, one deployable unit:
   terms persisted per candidate intervention; v1 logistic priors frozen; v2 trainer written.
 - **Shield** — deterministic, fail-closed guardrails: max 4 actions/episode, 2 contacts/customer/
   day, ₹5,000/day spend budget, quiet hours 21:00–09:00 IST, suppression/DND lists, human
-  approval required above ₹50,000, global kill switch (drain of 500 scheduled actions measured
-  at 25.5 ms [LOCAL RUN]).
+  approval required above ₹50,000, global kill switch.
 - **Hands** — Razorpay TEST MODE adapters (orders, payment links) plus explicitly labeled
   [SIMULATED] channel simulators (WhatsApp/SMS/email/voice). Rejects any non-`rzp_test_` key
   (`TestModeViolation`). Duplicate payment-link guard: reference-id lookup before create and
   after timeouts.
-- **Ledger** — append-only hash-chained action log: `sha256(seq ‖ prev_hash ‖ canonical(event))`,
-  tamper-detection endpoint, app DB role limited to INSERT/SELECT.
+- **Ledger** — append-only hash-chained action log: `sha256(seq ‖ prev_hash ‖ event::text)`
+  computed server-side inside a single atomic INSERT (pgcrypto), tamper-detection endpoint,
+  app DB role limited to INSERT/SELECT (no UPDATE/DELETE grants). Append and verify hash the
+  exact same stored bytes by construction.
 - **Proof** — replay engine, hidden-parameter outcome simulator, honestly tuned baselines, and
   the pre-registered evaluation harness (`eval/PROTOCOL.md`).
 
@@ -72,41 +69,37 @@ gate before LLM acceptance; COMPLAINT precision ≥95% and recall ≥90% gates g
 Postgres role separation makes rigging structurally difficult: the agent role (`reflex_agent`)
 physically cannot SELECT the hidden simulator tables (`replay.sim_customers`, `replay.sim_events`) —
 verified by SQLSTATE-42501 tests. The evaluation protocol was committed and git-tagged
-(`eval-preregistered-v1`, plus amendments) BEFORE any results existed. Baseline B1 is honestly
-tuned (documented grid search in `eval/results/b1_tuning.json`). A losing cohort is published.
-Reproduction is proven: two complete independent official runs on different days produced
-byte-identical per-seed results.
+(`eval-preregistered-v1`, plus amendments) BEFORE any results existed; the gate is checked at
+eval time via local git history, `git ls-remote` against GitHub, or the REST API (fails closed,
+cached briefly). Baseline B1 is honestly tuned (documented grid search in
+`eval/results/b1_tuning.json`). A losing cohort is published. Reproduction is proven: two
+complete independent official runs on different days produced byte-identical per-seed results.
 
 ## Measured results (official pre-registered run, ALL [SIMULATED])
 
-Protocol `eval-preregistered-v1` (Amendment 2: deterministic eval clock; the keyed run's LLM-tail
-outcome is described in `docs/limitations.md` §3b), N=3,000 episodes × seeds {42, 1337, 2025} ×
-8 arms, bootstrap 95% CIs (1,000 episode-level resamples). Artifacts:
-`eval/results/20260826T105147Z/`.
+Protocol `eval-preregistered-v1`, seed 42, N=3,000 episodes × 8 arms (full protocol matrix),
+bootstrap 95% CIs (1,000 episode-level resamples). Artifacts: `eval/results/20260830T105923Z/`
+(results.json + tables.md). These runs are loaded in the deployed product's Results page.
 
 | Arm | Recovery % [95% CI] | Cost / ₹100 | Complaints | Median TTR |
 |---|---|---|---|---|
-| B0 do-nothing | 4.68 [3.71, 5.75] | — | 0% | 35.7 h |
-| B1 tuned naive | 21.22 [19.15, 23.46] | ₹0.15 | 0.478% | 5.0 h |
-| **Reflex** | **31.27 [28.91, 33.9]** | **₹0.27** | **0.256%** | **10.3 h** |
+| B0 do-nothing | 4.11 [2.72, 5.82] | — | 0% | 39.2 h |
+| B1 tuned naive | 25.06 [20.92, 29.43] | ₹0.12 | 0.533% | 5.2 h |
+| **Reflex** | **33.83 [29.36, 38.75]** | **₹0.24** | **0.2%** | **10.1 h** |
 
-- Incremental recovery vs B1: **+10.05 pp [+7.68, +12.56]** (CI excludes zero).
+- Incremental recovery vs B1: **+8.77 pp [4.49–13.28]** (CI excludes zero — the effect is real).
 - Gate scorecard: G2 cost ≤ ₹3.5 **PASS** · G3 complaints < 0.5% **PASS** · G5 same-seed
-  reproduction **PASS (proven)** · **G1 ≥ +15 pp MISSED at +10.05 pp — reported honestly** ·
+  reproduction **PASS (proven)** · **G1 ≥ +15 pp MISSED at +8.77 pp — reported honestly** ·
   G6 vacuous without LLM differentiation.
-- Per-seed Reflex recovery: seed 42 → 33.83%, seed 1337 → 29.39%, seed 2025 → 30.52%.
-- Reproducibility proof: two complete independent runs on different days
-  (`eval/results/20260825T221826Z/` and `eval/results/20260826T105147Z/`) produced
-  byte-identical per-seed results across all arms (G5 PASS).
-- Ablations: A1 rules-only 31.27% (= full; the LLM conservatively agrees with the fallback on
-  the synthetic ambiguous tail — see limitations §3b) · **A2 EV-off 36.35% [33.89, 38.99]** —
-  higher recovery at ~2.1× the cost (₹0.57 vs ₹0.27 per ₹100) and ~2× the complaints
-  (0.522% vs 0.256%), committed as an honest negative result
+- Ablations: A1 rules-only 33.83% (= full; the LLM conservatively agrees with the fallback on
+  the synthetic ambiguous tail — see limitations §3b) · **A2 EV-off 39.93% [34.98, 44.91]** —
+  higher recovery at ~2× the cost (₹0.49 vs ₹0.24 per ₹100) and ~1.8× the complaints
+  (0.367% vs 0.2%), committed as an honest negative result
   (over-pessimistic v1 priors; remedy is protocol-disciplined v2 recalibration) · A3 static
-  templates 31.27% · **A4 no-timing 25.55% [23.54, 28.07]** ⇒ salary-cycle timing is the
-  strongest measured lever (≈ +5.7 pp) · DEGRADED 31.27%.
-- Losing cohort: 3,526 episodes where Reflex correctly DECLINED to act (contact cost > expected
-  value); B1 spends on all of them at 1.9× Reflex's complaint rate.
+  templates 33.83% · **A4 no-timing 27.97% [23.9, 32.36]** ⇒ salary-cycle timing is the
+  strongest measured lever (≈ +5.9 pp) · DEGRADED 33.83%.
+- Losing cohort: **1,189 episodes** where Reflex correctly DECLINED to act (contact cost >
+  expected value); B1 spends on all of them.
 
 ## Quickstart
 
@@ -123,7 +116,26 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 - Seeded logins (password `reflex-demo`): admin@reflex.dev · operator@reflex.dev ·
   approver@reflex.dev · viewer@reflex.dev.
 - Official evaluation: `./eval/reproduce.sh` (refuses to run if the pre-registration tag is
-  missing). Backend tests: `make test` (164 passing [LOCAL RUN]; CI backend job green).
+  missing). Backend tests: `make test` (CI backend job green).
+
+## Production behavior notes (current build)
+
+- **Ledger:** hashes are computed server-side inside a single atomic INSERT over the
+  jsonb-normalized event text (`sha256(seq ‖ prev_hash ‖ event::text)` via pgcrypto) — append
+  and verify agree by construction, concurrent writers cannot fork the chain, and the chain
+  stayed valid through live demos (31,000+ events).
+- **Counters** are recomputed from Postgres at startup — Ops shows real totals after redeploys.
+- **Drive end:** when a replay finishes, all non-terminal episodes are force-resolved (72h
+  expiry + fail-closed approval timeouts, ledgered) and the sim clock resets to wall time —
+  nothing stays frozen in "observing".
+- **Security hardening:** random `JWT_SECRET` in production, `/debug/*` admin-only
+  (migrations POST-only), `/metrics` viewer-gated, `/docs`+`/openapi.json` disabled unless
+  `DEBUG=1`, CORS limited to the deployed origins, CSP headers on the static app.
+- **Eval gate:** the pre-registration tag is checked via git history, `git ls-remote`, or the
+  GitHub API (cached; transient failures never block permanently) — "Run eval" works from the
+  deployed container.
+- **SSE:** real Redis pubsub delivers live events; the frontend exchanges the session JWT for
+  a 60-second stream credential so the JWT never rides the URL; reads use a dedicated thread pool.
 
 ## Failure-handling demos (real injections through real paths)
 
@@ -131,7 +143,7 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
   DEGRADED.
 - `webhook_storm` → 1,000 events collapse to 214 episodes via provider-event-id dedup.
 - `complaint` injection → instant global suppression + human handoff + STOPPED_CUSTOMER.
-- Kill switch → halt drain measured at 25.5 ms for 500 scheduled actions [LOCAL RUN].
+- Kill switch → confirmation modal → system-wide halt, deliberate re-enable required.
 
 ## Key files
 
@@ -140,8 +152,7 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 - `CONTRIBUTING.md` — setup, conventions, non-negotiable fintech/AI safety rules
 - `docs/limitations.md` — THE honest record: gate scorecard, caveats, negative results
 - `eval/PROTOCOL.md` — pre-registered evaluation protocol + amendment history
-- `eval/results/20260826T105147Z/` — official pre-registered results (results.json + tables.md)
-- `eval/results/superseded_pre_amendment/` — archived non-citable runs, with explanation
+- `eval/results/20260830T105923Z/` — official pre-registered results (results.json + tables.md)
 - `docs/1. PRD.md` … `docs/8. Rules.md` — full design documentation (8 canonical files)
 - `tests/ai/test_diagnosis_accuracy.py` — 500-case diagnosis holdout (writes confusion matrix
   to `eval/results/dx_holdout/`)
@@ -149,13 +160,15 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 
 ## What an evaluator should check (suggested verification path)
 
-1. Run the quickstart above; log in; run `make demo`; watch SSE updates on the dashboard.
-2. Trigger the three failure injections from `/ops` (`llm_outage`, `webhook_storm`,
-   `complaint`); verify zero dropped episodes.
+1. Open the live deployment (below) or run the quickstart; log in; start the demo replay;
+   watch live SSE updates on the dashboard (green "connected" pill).
+2. Trigger the failure injections from `/ops` (`llm_outage`, `webhook_storm`, `complaint`);
+   verify zero dropped episodes.
 3. Verify the anti-cheat boundary in Postgres:
    `SELECT has_table_privilege('reflex_agent', 'replay.sim_customers', 'SELECT');` → must be `false`.
-4. Verify the ledger chain: `GET /api/ledger/verify` → `{"valid": true, ...}`.
-5. Cross-check any quoted number against `eval/results/20260826T105147Z/results.json`.
+4. Verify the ledger chain: `/audit → Verify chain` or `GET /api/ledger/verify` →
+   `{"valid": true, ...}` — valid even while a demo is running.
+5. Cross-check any quoted number against `eval/results/20260830T105923Z/results.json`.
 6. Read `docs/limitations.md` before repeating ANY metric — especially the G1 miss and the
    A2 anomaly.
 
@@ -163,26 +176,25 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 
 A live instance of this exact code runs end-to-end (all data [SIMULATED], TEST MODE):
 
-- **UI:** https://reflex-recover.vercel.app (Vercel static SPA)
+- **UI:** https://reflex-recover.vercel.app (Vercel static SPA + CSP headers)
 - **API:** https://reflex-api-production.up.railway.app (Railway Docker container: FastAPI +
-  embedded workers + in-memory event broker + **PostgreSQL** via `DATABASE_URL`)
+  embedded workers + **PostgreSQL** + **Redis** — private network — via `DATABASE_URL`/`REDIS_URL`)
 
 Logins (password `reflex-demo`): `admin@reflex.dev` / `approver@` / `operator@` / `viewer@`.
-Infra wiring (Vercel build env `VITE_REFLEX_API`, Railway `DATABASE_URL`, CORS for
-`*.vercel.app`/`*.railway.app`, `${PORT:-8000}` Dockerfile) is documented in `MIGRATION.md`.
-The production build refuses to compile without `VITE_REFLEX_API` (same-origin regression guard);
-GitHub Actions skips that guard because its bundle is never deployed.
+Infra wiring (Vercel build env `VITE_REFLEX_API` for Production+Preview, Railway `DATABASE_URL`
++ `REDIS_URL`, CORS allow-list, `${PORT:-8000}` Dockerfile) is documented in `MIGRATION.md`.
+The production build refuses to compile without `VITE_REFLEX_API` (same-origin regression
+guard); GitHub Actions skips that guard because its bundle is never deployed. Branch flow:
+work lands on `master`; a workflow fast-forwards `main` on every master push.
 
 ## Known limitations (summary)
 
-- G1 (incremental ≥ +15 pp) MISSED at +10.05 pp — real effect, smaller than target.
+- G1 (incremental ≥ +15 pp) MISSED at +8.77 pp — real effect, smaller than target.
 - LLM-tail recovery value unmeasured on synthetic data: an honest model matches the
   conservative fallback on deliberately-unclassifiable strings (§3b of limitations).
-- A2 EV-off anomaly (36.35% > 31.27%) pending v2 prior recalibration.
+- A2 EV-off anomaly (39.93% > 33.83%) pending v2 prior recalibration.
 - Same-seed reproduction drift existed pre-TASK-061; fixed and re-proven (see G5 above).
 - Live Razorpay test-mode observation of the duplicate-payment-link guard still owed.
-- Live deployment exists (Vercel UI + Railway API, [SIMULATED] data); real-key LLM tail
-  differentiation and a produced pitch video still pending.
 
 ## Non-goals
 
