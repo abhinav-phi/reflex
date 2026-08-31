@@ -50,7 +50,10 @@ def agent_engine():  # type: ignore[no-untyped-def]
             socket.setdefaulttimeout(None)
         except socket.gaierror:
             return create_engine("sqlite:///./reflex-cloud.db", connect_args={"check_same_thread": False})
-    return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10)
+    # connect_timeout: a transiently unreachable Postgres must fail in seconds,
+    # not hang startup past the platform healthcheck.
+    return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10,
+                         connect_args={"connect_timeout": 10})
 
 
 @lru_cache
@@ -72,6 +75,7 @@ def eval_engine():  # type: ignore[no-untyped-def]
         pool_size=10,
         max_overflow=6,
         pool_timeout=60,
+        connect_args={"connect_timeout": 10},
     )
 
 
@@ -86,7 +90,7 @@ def admin_engine():  # type: ignore[no-untyped-def]
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
     if "sqlite" in url:
         return create_engine(url, connect_args={"check_same_thread": False})
-    return create_engine(url, pool_pre_ping=True)
+    return create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 10})
 
 
 @lru_cache
