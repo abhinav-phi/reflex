@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from reflex.api.params import require_uuid
 from reflex.api.security import require_role
 from reflex.core.enums import Role
 from sqlalchemy import text
@@ -19,6 +20,7 @@ def episode_ledger(
     user: dict[str, Any] = Depends(require_role(Role.VIEWER)),
 ) -> dict:
     request.app.state.rate.check("episodes_list", user["user_id"])
+    episode_id = require_uuid(episode_id, "episode_id")
     from reflex.api.db import agent_sessionmaker
 
     s = agent_sessionmaker()()

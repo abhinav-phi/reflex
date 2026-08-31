@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from reflex.api.params import require_uuid
 from reflex.api.security import require_role
 from reflex.core.enums import Decision
 from reflex.core.schemas import ApprovalDecisionRequest
@@ -76,6 +77,7 @@ def decide(
     user: dict[str, Any] = Depends(require_role(__import__("reflex.core.enums", fromlist=["Role"]).Role.APPROVER)),
 ) -> dict:
     request.app.state.rate.check("approvals", user["user_id"])
+    approval_id = require_uuid(approval_id, "approval_id")
     from reflex.api.db import agent_sessionmaker
     from reflex.ledger.chain import LedgerWriter
 
