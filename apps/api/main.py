@@ -66,12 +66,17 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.sse_pool = ThreadPoolExecutor(max_workers=32, thread_name_prefix="sse")
     # Ops counters live in the (possibly in-memory) Redis and reset on every
     # redeploy. Recompute the durable totals from Postgres so the Ops page shows
-    # real numbers after a restart instead of zeros.
+    # real numbers after a restart instead of zeros. A short connect timeout
+    # keeps a transiently unreachable Postgres from stalling the healthcheck.
     try:
-        from reflex.api.db import agent_sessionmaker as _cm
+        from sqlalchemy import create_engine as _ceng
         from sqlalchemy import text as _text
 
-        _s = _cm()()
+        _cu = os.environ.get("DATABASE_URL", "").replace(
+            "postgresql://", "postgresql+psycopg2://", 1
+        ).replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+        _eng = _ceng(_cu, pool_pre_ping=True, connect_args={"connect_timeout": 10})
+        _s = _eng.connect()
         try:
             _seed: dict[str, int] = {}
             _seed["episodes_created"] = _s.execute(
@@ -110,6 +115,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             ).scalar() or 0
         finally:
             _s.close()
+            _eng.dispose()
         for _k, _v in _seed.items():
             app.state.redis.set(f"reflex:ctr:{_k}", _v)
         log.info("counters_seeded_from_db", **_seed)
