@@ -5,6 +5,52 @@
 Old home (Antideploy) works but its Cloudflare edge rate-limits bursts by IP.
 This doc is the self-service path to the split setup.
 
+## Postgres on Aiven Free (2026-09-01) — production DB + ops runbook
+
+The Railway free-plan Postgres hit its hard 500 MB volume ceiling: crash
+recovery needed ~16 MB of WAL headroom that did not exist, so it crash-looped
+("No space left on device" writing `pg_wal/xlogtemp`), and free-plan volumes
+cannot be grown. The database was rescued and migrated to **Aiven for
+PostgreSQL Free** (1 GB disk, 1 vCPU/1 GB RAM, Amsterdam `upcloud-nl-ams`,
+same city as the API). Migration proven bit-exact: all 23 tables' row counts
+and a 9-value ledger fingerprint (row-hash sums, event-text checksums, seq
+range) matched the source exactly; the `pg_dump -Fc` sha256 verified on both
+ends.
+
+- `DATABASE_URL` (reflex-api on Railway) now points at the Aiven URI
+  (`postgres://avnadmin:…@reflex-pg-reflex-prod.j.aivencloud.com:22228/railway?sslmode=require`).
+- Connection pools in `apps/api/db.py` + the `main.py` counters seeder are
+  capped to fit Aiven Free's **`max_connections = 20`** (agent 6+2, eval 5+3,
+  admin 3+0, seeder 1 — steady ~10, worst case 20).
+- The old Railway Postgres service is left **frozen (crashed) as a cold
+  backup** of the pre-migration volume. Delete it once confidence in Aiven
+  settles; that also stops it consuming free-plan usage.
+
+### Operations
+
+1. **Weekly-idle power-off.** Aiven powers free services off after ~1 week of
+   no activity (email notice first). Before a demo: console.aiven.io →
+   `reflex-pg` → **Power on** (a few minutes), then check `GET /healthz`. The
+   API's 10 s connect timeout makes a powered-off DB surface as fast 500s on
+   DB routes, never a hang.
+2. **Verification queries** (SQL console against the Aiven URI):
+   `SELECT COUNT(*) FROM runtime.episodes` → **18041**;
+   `SELECT COUNT(*) FROM runtime.action_ledger` → **≥ 204061** (grows with new
+   appends); `SELECT last_value FROM runtime.action_ledger_seq_seq` must be
+   ≥ max(seq) — else appends would collide.
+3. **Known, pre-existing ledger property (do NOT "fix" casually):** rows with
+   `seq ≥ 32166` from the eval/replay bulk loaders were appended concurrently,
+   so ~12.7k rows carry hashes computed against a stale chain head — the
+   full-table `GET /api/ledger/verify` reports `first_bad_seq: 32166` (it did
+   on the source database too; the migration preserved it byte-for-byte).
+   Per-episode trails of affected episodes return 409. Re-running
+   `scripts/restamp_ledger.py` against the Aiven URI re-derives the chain from
+   stored events (the project's sanctioned repair) — but that changes stamps
+   relative to the published eval artifact, so decide deliberately.
+4. **Recent appends are atomic**: since migration `0003`, ledger hashes are
+   computed server-side (pgcrypto) inside the single INSERT, so new rows chain
+   correctly; `pgcrypto` is present on the Aiven instance.
+
 ## Current live deployment (2026-08-28)
 
 | App | URL | Platform |

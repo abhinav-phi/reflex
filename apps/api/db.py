@@ -52,7 +52,10 @@ def agent_engine():  # type: ignore[no-untyped-def]
             return create_engine("sqlite:///./reflex-cloud.db", connect_args={"check_same_thread": False})
     # connect_timeout: a transiently unreachable Postgres must fail in seconds,
     # not hang startup past the platform healthcheck.
-    return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=10,
+    # Pool caps: managed free-tier Postgres enforces a low max_connections
+    # (Aiven free = 20). Steady ~6, burst ~8; other engines stay within the
+    # shared budget (see eval_engine/admin_engine/main.py counters seeder).
+    return create_engine(url, pool_pre_ping=True, pool_size=6, max_overflow=2,
                          connect_args={"connect_timeout": 10})
 
 
@@ -72,8 +75,11 @@ def eval_engine():  # type: ignore[no-untyped-def]
     return create_engine(
         url,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=6,
+        # Proof runs up to 8 parallel arm-transactions on this engine; each
+        # holds one connection for the whole arm — the pool must cover the
+        # worker count, while staying inside the shared 20-connection budget.
+        pool_size=5,
+        max_overflow=3,
         pool_timeout=60,
         connect_args={"connect_timeout": 10},
     )
@@ -90,7 +96,9 @@ def admin_engine():  # type: ignore[no-untyped-def]
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
     if "sqlite" in url:
         return create_engine(url, connect_args={"check_same_thread": False})
-    return create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 10})
+    # Admin path is rare — cap hard so the shared 20-connection budget holds.
+    return create_engine(url, pool_pre_ping=True, pool_size=3, max_overflow=0,
+                         connect_args={"connect_timeout": 10})
 
 
 @lru_cache

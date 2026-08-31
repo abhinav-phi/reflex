@@ -62,3 +62,7 @@ coverage/
 
 # Agent tooling lock (local machine only, never publish)
 skills-lock.json
+.tmp-railway/
+.tmp-aiven/
+*.dump
+*.dump.*

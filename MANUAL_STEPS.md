@@ -4,7 +4,7 @@
 >
 > **Safety Notice:** This project operates strictly in `[TEST MODE]` (Razorpay keys must start with `rzp_test_`) with fully `[SIMULATED]` customer data and channels. Never connect to production credentials — the code refuses live keys by design (`TestModeViolation`).
 >
-> **Live instance (already deployed — same code, PostgreSQL on Railway):** UI **https://reflex-recover.vercel.app** (Vercel) · API **https://reflex-api-production.up.railway.app** (Railway). Seeded logins below (password `reflex-demo`) work there too. Everything below (§1–§11) is the **local dev / Docker** path; infra details for the live split deploy are in [MIGRATION.md](MIGRATION.md).
+> **Live instance (already deployed — same code; API on Railway, PostgreSQL on Aiven Free):** UI **https://reflex-recover.vercel.app** (Vercel) · API **https://reflex-api-production.up.railway.app** (Railway). Seeded logins below (password `reflex-demo`) work there too. Everything below (§1–§11) is the **local dev / Docker** path; infra details for the live split deploy are in [MIGRATION.md](MIGRATION.md) — including the Aiven Postgres ops runbook (weekly-idle power-on, verification queries).
 
 ---
 

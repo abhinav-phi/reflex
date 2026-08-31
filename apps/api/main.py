@@ -74,8 +74,14 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
         _cu = os.environ.get("DATABASE_URL", "").replace(
             "postgresql://", "postgresql+psycopg2://", 1
-        ).replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
-        _eng = _ceng(_cu, pool_pre_ping=True, connect_args={"connect_timeout": 10})
+        ).replace("postgresql+psycopg://", "postgresql+psycopg2://", 1).replace(
+            # Aiven-style bare scheme (must stay after the postgresql:// forms)
+            "postgres://", "postgresql+psycopg2://", 1
+        )
+        # One-shot startup seeder — hold at most 1 connection (shared
+        # max_connections budget on managed free-tier Postgres).
+        _eng = _ceng(_cu, pool_pre_ping=True, pool_size=1, max_overflow=0,
+                     connect_args={"connect_timeout": 10})
         _s = _eng.connect()
         try:
             _seed: dict[str, int] = {}

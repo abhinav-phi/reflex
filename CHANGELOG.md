@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.1.0] — 2026-09-01
+
+### Changed
+- **Production Postgres migrated Railway → Aiven Free** (1 GB disk, 1 vCPU/1 GB RAM,
+  Amsterdam `upcloud-nl-ams`, $0, no expiry). The Railway free-plan Postgres crashed
+  permanently: its 500 MB volume filled and crash recovery could not write WAL
+  (`pg_wal/xlogtemp` ENOSPC), and free-plan volumes cannot be grown. Migration proven
+  bit-exact — all 23 tables' row counts and a 9-value ledger fingerprint (row-hash sums,
+  event-text checksums, seq range) match the source; `pg_dump -Fc` sha256 verified on
+  both ends. The frozen Railway Postgres service remains as a cold backup of the
+  pre-migration volume.
+- Connection pools capped for Aiven Free's `max_connections = 20`: agent engine 6+2,
+  eval engine 5+3, admin engine 3+0, startup counters seeder 1+0 (steady ~10, worst
+  case 20), plus the counters seeder now accepts the bare `postgres://` scheme.
+- Docs: `MIGRATION.md` gained the Aiven ops runbook (weekly-idle power-on, verification
+  queries, ledger caveat); `MANUAL_STEPS.md` live-instance header updated.
+
 ## [1.0.0] — 2026-08-31
 
 ### Added
