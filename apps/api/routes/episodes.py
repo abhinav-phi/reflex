@@ -6,7 +6,6 @@ from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from reflex.api.params import require_uuid
 from reflex.api.security import require_role
 from reflex.core.enums import Role
 from sqlalchemy import text
@@ -101,7 +100,6 @@ def get_episode(
     user: dict[str, Any] = Depends(require_role(Role.VIEWER)),
 ) -> dict:
     _rate(request, "episode_get", user)
-    episode_id = require_uuid(episode_id, "episode_id")
     from reflex.api.db import agent_sessionmaker
 
     s = agent_sessionmaker()()
@@ -217,7 +215,6 @@ def escalate(
     user: dict[str, Any] = Depends(require_role(Role.OPERATOR)),
 ) -> dict:
     request.app.state.rate.check("control_mode", user["user_id"])
-    episode_id = require_uuid(episode_id, "episode_id")
     from datetime import datetime
 
     from reflex.api.db import agent_sessionmaker

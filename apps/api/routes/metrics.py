@@ -6,7 +6,6 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
-from reflex.api.params import require_uuid
 from reflex.api.security import require_role
 from reflex.core.enums import Role
 from sqlalchemy import text
@@ -121,8 +120,6 @@ def eval_metrics(
 ) -> dict:
     """All values [SIMULATED] — eval evidence from committed runs."""
     request.app.state.rate.check("metrics_eval", user["user_id"])
-    if run_id:
-        run_id = require_uuid(run_id, "run_id")
     from reflex.api.db import eval_sessionmaker
 
     s = eval_sessionmaker()()
