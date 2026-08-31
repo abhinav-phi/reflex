@@ -156,3 +156,29 @@ of their numbers are citable (pre-amendment mixture; since-fixed CI computation)
 - Deterministic eval clock to close **G5** (TASK-061 — see #2).
 - v1-prior recalibration via a protocol-disciplined v2-trainer run, then re-measure the EV-vs-fixed-priority gap (see #4).
 - Keyed LLM rerun to measure the ambiguous-tail value (see #3) and open AI-1's live accuracy gate.
+- Full 214-episode replay-demo pass and a complete UI click-through **against the Aiven-backed deployment** (reads verified end-to-end; the live write path has not been exercised post-migration yet).
+
+## 10. Deployment & infrastructure limits (2026-09-01 — production DB on Aiven Free)
+
+The production database runs on **Aiven for PostgreSQL Free** (Amsterdam, same city as the
+API; 1 GB disk, 1 vCPU/1 GB RAM, automated backups, $0, no expiry). This is a deliberate
+cost trade-off with real limits, stated plainly:
+
+- **`max_connections = 20`** (platform-set). The API's pools are capped to fit (agent 6+2,
+  eval 5+3, admin 3+0, startup seeder 1 — steady ~10, worst case 20), so ≈8 concurrent
+  DB-active requests are served before pool waits. SSE streams hold **zero** DB connections
+  (Redis pubsub). This is a simultaneous-connections ceiling, **not** a requests-per-hour limit.
+- **Idle power-off:** Aiven powers free services off after ~1 week of no activity (email
+  notice first; Power On from the console takes a few minutes). Before a demo after a quiet
+  week: console.aiven.io → `reflex-pg` → Power On, then check `GET /healthz`.
+- **No SLA** on the free plan; single node; no private networking (the API reaches it over
+  TLS with `sslmode=require` — encrypted, without CA pinning; the CA download endpoint is
+  not exposed on the current API surface).
+- **Disk 1 GB:** production data ≈ 250 MB after the 2026-09-01 restamp + vacuum; watch
+  growth before bulk re-runs of the eval loader.
+- **History preserved:** the predecessor Railway free-tier Postgres was lost to its fixed
+  500 MB volume filling (crash recovery could not write WAL). The ledger was repaired
+  (re-stamped from stored events — 171,902 rows) and the migration was verified bit-exact
+  (all table counts + a 9-value fingerprint). Pre-migration and pre-restamp dumps are
+  retained (`~/.reflex-rescue/dump/` + Aiven PITR). Ledger-hash values exported before
+  2026-09-01 no longer match the database — re-export before any hash-level comparison.

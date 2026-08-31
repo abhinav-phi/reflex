@@ -110,3 +110,65 @@ This report was written before the G5 reproduction run completed. Latest measure
 ## Verification highlights
 
 `/healthz` 200 · forged old-secret token 401 · `/debug/*` 401 unauth / 200 admin · `/metrics` 401 unauth · ledger `{"valid":true,"checked":31,369}` · eval `tag_present: true` from the container · 26 official eval runs loaded · CI green on `main` · sync workflow green on `master`.
+
+---
+
+# Addendum — 2026-09-01 Session (Database migration + ledger repair)
+
+**Scope:** production Postgres migration (Railway → Aiven Free), data rescue from a
+disk-full crash loop, ledger chain repair, trail-verification fix, and a hardening
+pass on malformed identifiers.
+
+## Executed
+
+1. **Root cause (corrects the 2026-08-31 "network" theory).** The Railway Postgres
+   crash-loop was disk exhaustion, not a broken private network: the fixed 500 MB
+   free-plan volume hit 98% (242 MB data + 180 MB WAL), so crash recovery could not
+   write WAL (`pg_wal/xlogtemp` ENOSPC) — and free-plan volumes cannot be grown.
+   Restarts could never have fixed it.
+2. **Data rescue.** During container boot windows, `pg_wal` was relocated to the
+   container root filesystem (with a volume-resident backup until the dump was safe),
+   letting recovery complete; `pg_dump -Fc` (31.1 MB) was streamed out and its sha256
+   verified on both ends.
+3. **Migration to Aiven Free PostgreSQL** (`reflex-pg`, Amsterdam `upcloud-nl-ams` —
+   same city as the API; 1 GB disk, automated backups, $0). Proven bit-exact: all 23
+   tables' row counts and a 9-value ledger fingerprint (row-hash sums, event-text
+   checksums, seq range) identical; `DATABASE_URL` flipped; pools capped for
+   `max_connections=20` (agent 6+2, eval 5+3, admin 3+0, counters seeder 1 — the
+   seeder also learned the bare `postgres://` scheme).
+4. **Ledger chain repaired.** ~12.7k eval/replay bulk-load rows (seq ≥ 32166) carried
+   hashes against a stale chain head (pre-atomic-INSERT concurrent-writer artifact).
+   Re-stamped from stored events in 5,000-row batches behind a verified pre-fix backup
+   (171,902 rows). `GET /api/ledger/verify` → `{"valid": true, "checked": 204061}`.
+5. **Per-episode trail verification fixed.** The trail verifier seeded a subset walk
+   from genesis while the replay driver interleaves episodes — every replay-era trail
+   falsely 409'd. New `verify_episode_slice` checks each row against its own global
+   predecessor (LATERAL) plus hash self-consistency; `verify_rows` unchanged. Unit +
+   CI-integration tests (interleave, tamper, linkage-break) added.
+6. **Malformed identifiers now 422, not 500.** Five routes CAST client-supplied ids to
+   uuid in SQL; a shared `require_uuid` boundary validates (well-formed-but-missing
+   still 404s). Live-verified in production.
+7. **CI/test lesson recorded.** A first regression-test attempt used `client` fixtures
+   whose embedded-worker lifecycles raced the burst load gate (3001 vs 3000 episodes,
+   deterministic); replaced with client-free unit tests. The route fix itself was
+   exonerated by bisect (revert → green, routes-only re-apply → green).
+
+## Verification highlights (live, production)
+
+`healthz` 200 · login 200 (JWT) · `ledger/verify` valid:true over 204,061 · replay-era
+episode trails 200 (was 409) · malformed id 422 (was 500) · metrics/live 18,041 terminal
+episodes · eval artifact 31 runs served · counters seeded from DB on boot · Railway
+deploy SUCCESS at the fix commits · CI green on `main` · sync green on `master`.
+
+## Residual / operational
+
+- Aiven Free pauses the DB after ~1 week idle → Power On before demos (runbook:
+  `MIGRATION.md`); 20-connection ceiling (pools capped); no SLA; `sslmode=require`
+  without CA pinning (CA endpoint unavailable via API — intended upgrade).
+- Frozen Railway Postgres kept as cold backup (no longer independently bootable — its
+  WAL relocation was rootfs-resident); authoritative backups: local dumps + Aiven PITR.
+- Housekeeping pending (owner decision): delete `robust-magic` Railway project; rotate
+  the Aiven API token + DB password (both were shared during migration); remove the
+  `railway-cli-volume-admin` SSH key when no longer needed.
+- Not yet exercised post-migration: a full 214-episode replay run and a complete UI
+  click-through (reads verified end-to-end; write path configured and unit-covered).

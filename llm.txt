@@ -123,7 +123,10 @@ make demo                   # 214 episodes / ₹2,41,000 failed value, seed demo
 - **Ledger:** hashes are computed server-side inside a single atomic INSERT over the
   jsonb-normalized event text (`sha256(seq ‖ prev_hash ‖ event::text)` via pgcrypto) — append
   and verify agree by construction, concurrent writers cannot fork the chain, and the chain
-  stayed valid through live demos (31,000+ events).
+  stayed valid through live demos (31,000+ events; production chain re-stamped once on
+  2026-09-01 to repair concurrent eval bulk-load races, then migrated — verify now reports
+  `valid:true` over 204k+ rows). Per-episode trails verify each row against its own global
+  predecessor, so interleaved replay-era episodes verify correctly.
 - **Counters** are recomputed from Postgres at startup — Ops shows real totals after redeploys.
 - **Drive end:** when a replay finishes, all non-terminal episodes are force-resolved (72h
   expiry + fail-closed approval timeouts, ledgered) and the sim clock resets to wall time —
@@ -178,7 +181,14 @@ A live instance of this exact code runs end-to-end (all data [SIMULATED], TEST M
 
 - **UI:** https://reflex-recover.vercel.app (Vercel static SPA + CSP headers)
 - **API:** https://reflex-api-production.up.railway.app (Railway Docker container: FastAPI +
-  embedded workers + **PostgreSQL** + **Redis** — private network — via `DATABASE_URL`/`REDIS_URL`)
+  embedded workers + Redis on the Railway private network via `REDIS_URL`)
+- **PostgreSQL:** Aiven Free (`reflex-pg`, Amsterdam — same city as the API; 1 GB disk,
+  1 vCPU/1 GB RAM, automated backups) via `DATABASE_URL` with `sslmode=require`. Migrated
+  from Railway free-tier Postgres on 2026-09-01 after its fixed 500 MB volume filled and
+  crash recovery could no longer write WAL (bit-exact migration: all table counts + a
+  9-value ledger fingerprint verified). API connection pools are capped for Aiven's
+  `max_connections=20`. Aiven powers the service off after ~1 week of zero traffic —
+  Power On from the console before a demo (runbook in `MIGRATION.md`).
 
 Logins (password `reflex-demo`): `admin@reflex.dev` / `approver@` / `operator@` / `viewer@`.
 Infra wiring (Vercel build env `VITE_REFLEX_API` for Production+Preview, Railway `DATABASE_URL`

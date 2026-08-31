@@ -40,3 +40,9 @@ Real channels (simulated); the official eval HAS run ([SIMULATED], committed at 
 
 **Q: Are the demo numbers real?**
 The counters on stage are live system output from a seeded, deterministic replay slice. The pre-registered targets were 42%/24%/7%; the official run's actuals [SIMULATED] are committed at `eval/results/20260830T105923Z/` and loaded into the deployed Results page: **33.83% vs 25.06% vs 4.11%** with bootstrap CIs, incremental vs naive +8.77 pp CI[+4.49,+13.28] — we miss the aspirational ≥+15 pp gate and say so plainly (`docs/limitations.md`). [AppFlow §13 annotation, Rules §16]
+
+**Q: Where does production data live — and what if it pauses mid-demo?**
+PostgreSQL on **Aiven Free** (Amsterdam, same city as the API; 1 GB disk, automated backups, $0) — migrated from Railway's fixed 500 MB free volume after it filled and crash-looped; the move was verified bit-exact. Aiven pauses free services after ~1 week of zero traffic: Power On in the console (~2 min), then `GET /healthz`. The API's pools are capped to Aiven's 20-connection budget. [MIGRATION.md — ops runbook]
+
+**Q: Can I trust the ledger I'm looking at?**
+Yes — and prove it live: `GET /api/ledger/verify` → `{"valid": true, "checked": 204061+}`, and every episode drawer's trail verifies against the row's own global predecessor (`verify_episode_slice`), so interleaved replay data is checked row-by-row, not just wholesale. A deliberately tampered row or slice is detected and returns 409. Historical note: eval bulk-load rows once raced the chain head; the chain was re-stamped from stored events (2026-09-01) and the pre-repair dump is retained. [packages/ledger/chain.py, MIGRATION.md]

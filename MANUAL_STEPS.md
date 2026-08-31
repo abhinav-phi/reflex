@@ -191,6 +191,9 @@ If `reproduce.sh` fails on your host, inspect `eval/results/`: the citable offic
 | Login 401 with seeded email | Seed not applied. | Run `make seed` (idempotent); password is `reflex-demo`. |
 | Eval refuses to start: "REFUSING: git tag missing" | Pre-registration gate can't find `eval-preregistered-v1`. | Fetch full history (`git fetch --tags`); NEVER fabricate the tag after results exist. |
 | All diagnoses show RULE / template messages | No `LLM_API_KEY` configured — system is intentionally LLM-absent-safe. | Add key to `.env` for the full AI demo, or present degraded-safe mode honestly. |
+| DB routes 500 right after a quiet week (login/metrics fail, `healthz` OK) | Aiven Free powered the database off after ~1 week of zero traffic. | console.aiven.io → project `reflex-prod` → `reflex-pg` → **Power On** (few minutes), then re-check `GET /healthz` + login. Runbook: [MIGRATION.md](MIGRATION.md). |
+| `ledger/verify` reports `valid:false` | Genuine chain event — every row links to its globally preceding row; a break means tampering or a repair was made outside the sanctioned path. | Stop writes; restore the pre-incident dump (`~/.reflex-rescue/dump/` or Aiven PITR) after verifying its sha256; never hand-edit hashes. |
+| Episode trail returns **409** on old exports/re-loads | Post-restamp rows verified against each row's own global predecessor; 409 now means a genuine break in that slice. | Same as above — check which seq, restore from backup if unintended. |
 
 ## 11. TL;DR — Start Everything From Scratch (Copy-Paste)
 

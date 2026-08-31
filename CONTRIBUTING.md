@@ -66,6 +66,11 @@ Trunk-based development:
 - `main` is always releasable; CI must be green.
 - Short-lived branches off `main`: `<type>/<short-description>` — e.g. `feat/ev-drawer-sparkline`, `fix/webhook-raw-body`, `docs/tracker-sync`.
 - Squash-merge via PR; ≥1 approval, or self-approval with recorded reasoning during the buildathon window.
+- Branch flow in practice: work lands on `master`; the `sync-master-main` workflow
+  fast-forwards `main` on every master push. **CI quirk (observed 2026-09-01):** pushes
+  made *by that workflow* (GITHUB_TOKEN) do not start `ci.yml` — after a sync-only push,
+  trigger CI with one direct user-credential push to `main` (e.g. an empty
+  `git commit --allow-empty` + `git push origin HEAD:main`).
 
 ## Commit Message Guidelines
 

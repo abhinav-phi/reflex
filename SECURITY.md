@@ -44,3 +44,15 @@ investigation, and credit you in the fix release (unless you prefer to remain an
 - Rate limiting of the *public demo deployment itself* (it is intentionally open with
   seeded demo credentials)
 - Automated scanner noise without a demonstrated exploit path
+
+## Production data posture (2026-09-01)
+
+Production PostgreSQL runs on **Aiven Free** (Amsterdam) and is reached by the API over
+TLS with `sslmode=require` — encrypted in transit, without CA pinning (`verify-full`
+requires the server CA certificate, which the current Aiven API surface does not expose
+to automation; pinning is the intended upgrade when available). The database holds only
+`[SIMULATED]` data, but its integrity controls are real: append-only ledger grants, role
+separation, and a hash chain verifiable via `GET /api/ledger/verify`. Connection pools
+are capped to the plan's 20-connection budget. The Aiven API token and database password
+are secrets handled outside the repository (`.env`/platform variables only; gitleaks
+enforces this in CI).

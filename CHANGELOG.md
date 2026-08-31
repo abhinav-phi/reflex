@@ -24,6 +24,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Docs: `MIGRATION.md` gained the Aiven ops runbook (weekly-idle power-on, verification
   queries, ledger caveat); `MANUAL_STEPS.md` live-instance header updated.
 
+### Fixed
+- **Historical ledger chain repaired.** ~12.7k eval/replay bulk-load rows (seq ≥ 32166)
+  had hashes computed against a stale chain head (a concurrent-writer artifact from the
+  pre-atomic-INSERT era) — full-chain `ledger/verify` reported a break. The chain was
+  re-derived from stored events (sanctioned restamp math, executed in 5,000-row batches
+  behind a verified pre-fix backup; 171,902 rows re-stamped). `GET /api/ledger/verify`
+  now returns `{"valid": true, "checked": 204061}`; events/metrics untouched.
+- **Per-episode trails verified against the global chain.** The trail verifier seeded a
+  subset walk from genesis, but the replay driver interleaves episodes' rows in seq
+  order — every replay-era trail falsely 409'd. New `verify_episode_slice` checks each
+  row's linkage to its own global predecessor (LATERAL) plus hash self-consistency;
+  `verify_rows` (whole-chain/eval path) is unchanged. Covered by unit tests (interleave,
+  tamper, linkage-break, genesis, hash-rule parity) and a CI integration test on a real
+  interleaved chain.
+- **Malformed path/query UUIDs return 422, not 500.** Episode-ledger, episode-detail,
+  escalate, eval-run and approval-decide routes CAST client ids to uuid in SQL; a
+  malformed value raised an uncaught DataError. A shared `require_uuid` boundary
+  validates and 422s (well-formed-but-missing still 404s). Live-verified in production.
+
 ## [1.0.0] — 2026-08-31
 
 ### Added
