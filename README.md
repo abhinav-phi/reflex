@@ -45,6 +45,16 @@ Seeded logins (password `reflex-demo`): `admin@reflex.dev` · `approver@reflex.d
 
 > ⚠️ The production frontend build **refuses to compile without `VITE_REFLEX_API`** (`apps/web/vite.config.ts` guard) — the same-origin 405 regression can't happen again. GitHub Actions skips the guard (its bundle is never deployed).
 
+## Screenshots
+
+| Landing | Login | Command Center (Dashboard) |
+|---|---|---|
+| ![Reflex landing page](assets/landing_page.png) | ![Reflex login page](assets/login_page.png) | ![Reflex command center dashboard](assets/dashboard.png) |
+
+| Ops Console | Results (Eval Proof) |
+|---|---|
+| ![Reflex ops console](assets/ops_page.png) | ![Reflex evaluation results](assets/results_page.png) |
+
 ## The Problem: Why Subscriptions Leak Revenue
 
 Indian subscription/D2C merchants lose recurring revenue every month to failed UPI AutoPay debits, card declines, and e-mandate/NACH failures — and today they respond with either **silence** (revenue quietly leaks) or **dumb blast SMS** (revenue leaks *plus* annoyed customers). Recovery is manual, root-cause-blind, unmeasured, and often customer-hostile — even though recovered revenue is **~100% margin**, the cheapest money a merchant can acquire.

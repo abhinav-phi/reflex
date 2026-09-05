@@ -138,7 +138,9 @@ export default function Landing() {
           <a className="hover:text-primary transition-colors" href="#system">System</a>
           <Link className="hover:text-primary transition-colors" to="/results">Proof</Link>
           <a className="hover:text-primary transition-colors" href="#principle">Principle</a>
-          <a className="hover:text-primary transition-colors" href="mailto:support@reflex.dev">Contact Support</a>
+          <a className="hover:text-primary transition-colors" href="mailto:abhinav.phi15@gmail.com">Contact Support</a>
+          <a className="hover:text-primary transition-colors" href="https://github.com/abhinav-phi/reflex" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a className="hover:text-primary transition-colors" href="https://www.linkedin.com/in/abhinavphi" target="_blank" rel="noopener noreferrer">LinkedIn</a>
         </div>
       </footer>
     </div>
